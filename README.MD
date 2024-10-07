@@ -1,0 +1,1 @@
+Start of a proof of concept for generic entrypoint for ROF2 client dll proxying. Currently set up testing functionality within one dll but will extend to call separate DLLs dynamically based on a plugin list.
