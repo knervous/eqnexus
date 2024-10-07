@@ -1,0 +1,66 @@
+# Compiled object files, binaries, libraries, etc.
+*.obj
+*.o
+*.a
+*.lib
+*.so
+*.dll
+*.exe
+.vs/
+
+# Build directories
+build/
+bin/
+out/
+Debug/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.suo
+*.user
+*.ncb
+*.pidb
+
+# Logs and temporary files
+*.log
+*.tmp
+*.swp
+*.swo
+*.bak
+*.orig
+
+# CMake generated files
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Node.js
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+# Ignore .env files (e.g., sensitive environment variables)
+.env
+.env.local
+.env.*
+
+# Git specific
+*.lock
+*.idx
+*.pack
+*.keep
+
+# Backup files
+*.bak
+*~
