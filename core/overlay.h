@@ -10,6 +10,13 @@
 #include "d3d9_hooks.h"
 #include "eq/globals.h"
 
+
+struct ServerInfo {
+    std::string shortname = "";
+    std::string longname = "";
+    std::string url = "";
+};
+
 class EQOverlay : public EQModule {
 public:
     EQOverlay() {
@@ -58,5 +65,5 @@ private:
 
     // Status
     std::string status = "Initializing";
-
+    std::vector<ServerInfo> servers = {};
 };
