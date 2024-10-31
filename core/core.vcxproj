@@ -102,7 +102,7 @@
       <AdditionalDependencies>shlwapi.lib;gdiplus.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>copy "$(SolutionDir)$(Configuration)\core.dll" "$(SolutionDir)..\everquest_rof2\eqnexus\core.dll"</Command>
+      <Command>powershell -ExecutionPolicy Bypass -File "$(SolutionDir)HotReload.ps1"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -175,6 +175,7 @@
     <ClInclude Include="eq\login_frontend.h" />
     <ClInclude Include="eq\offset_utils.h" />
     <ClInclude Include="framework.h" />
+    <ClInclude Include="hook.h" />
     <ClInclude Include="nuklear.h" />
     <ClInclude Include="nuklear_d3d9.h" />
     <ClInclude Include="overlay.h" />

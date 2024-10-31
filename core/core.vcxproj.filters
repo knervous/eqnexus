@@ -78,6 +78,9 @@
     <ClInclude Include="eq\expansions.h">
       <Filter>Header Files\eq</Filter>
     </ClInclude>
+    <ClInclude Include="hook.h">
+      <Filter>Header Files\eq</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="core.cpp">

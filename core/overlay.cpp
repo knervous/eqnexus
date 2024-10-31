@@ -17,6 +17,28 @@ using namespace web::http::client; // HTTP client
 
 constexpr const char* iniPath = "eqnexus/config.ini";
 
+void draw_separator(struct nk_context* ctx) {
+	struct nk_color yellow = nk_rgb(198, 170, 132);
+	float separator_width = 0.8f;                  // 80% width of the window
+
+	// Padding above the separator
+	nk_layout_row_dynamic(ctx, 5, 1); // 10 pixels padding
+	nk_label(ctx, "", NK_TEXT_LEFT);   // Invisible label for padding
+
+	// Custom layout for the separator line with 80% width
+	nk_layout_row_begin(ctx, NK_STATIC, 1, 1); // 2-pixel high row for the separator
+	nk_layout_row_push(ctx, ctx->current->layout->bounds.w * separator_width); // 80% of window width
+	struct nk_rect rect = nk_layout_widget_bounds(ctx);
+	rect.h = 1;
+	// Draw the separator line
+	nk_fill_rect(&ctx->current->buffer, rect, 0, yellow);
+
+	nk_layout_row_end(ctx);
+
+	nk_layout_row_dynamic(ctx, 5, 1); // 10 pixels padding
+	nk_label(ctx, "", NK_TEXT_LEFT);   // Invisible label for padding
+}
+
 std::string ReadIniValue(std::string_view section, std::string_view key, const std::filesystem::path& iniFilePath) {
 	constexpr size_t bufferSize = 256;
 	char buffer[bufferSize]{};
@@ -48,6 +70,12 @@ void EQOverlay::InitializeBounds() {
 		window_x = clientWidth - (window_width + padding);
 		window_y = padding;
 	}
+	else {
+		window_width = 300;
+		window_height = 500;
+		window_x = 1200;
+		window_y = 10;
+	}
 }
 
 void EQOverlay::FetchServerData() {
@@ -68,11 +96,11 @@ void EQOverlay::FetchServerData() {
 		.then([this](json::value jsonResponse) {
 		// Parse and output the JSON content
 		std::wcout << L"JSON response:\n" << jsonResponse.serialize() << std::endl;
-		
+
 		// Access individual properties in the JSON
 		if (jsonResponse.is_object()) {
 			auto jsonObject = jsonResponse.as_object();
-			status = "Server Manifest Version: " + std::to_string(jsonObject[U("version")].as_double());
+			status = "Server Manifest Version: " + utility::conversions::to_utf8string(jsonObject[U("version")].as_string());
 
 			if (jsonObject[U("servers")].is_array()) {
 				for (const auto& server : jsonObject[U("servers")].as_array()) {
@@ -99,7 +127,7 @@ void EQOverlay::FetchServerData() {
 	})
 		.wait(); // Wait for all tasks to complete
 
-	
+
 }
 
 void EQOverlay::OnRender(IDirect3DDevice9* device) {
@@ -123,33 +151,24 @@ void EQOverlay::OnRender(IDirect3DDevice9* device) {
 	struct nk_rect window_rect = nk_rect(window_x, window_y, window_width, window_height);
 
 	nk_style_push_font(ctx, &header_font->handle);
-	if (nk_begin(ctx, "EQ Nexus Server Patcher", window_rect,
+	if (nk_begin(ctx, "EQ Nexus Server Patcher: NEW!", window_rect,
 		NK_WINDOW_BORDER | NK_WINDOW_MOVABLE | NK_WINDOW_SCALABLE |
 		NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE)) {
-		// Set header font for the titlebar
 		nk_style_pop_font(ctx);
-
-		enum { EASY, HARD };
-		static int op = EASY;
-		static int property = 20;
-
-		nk_layout_row_dynamic(ctx, 40, 1);
+		nk_layout_row_dynamic(ctx, 30, 1); 
 		nk_label(ctx, status.c_str(), NK_TEXT_CENTERED);
 
 		for (const auto& server : servers) {
+			draw_separator(ctx);
 			nk_layout_row_static(ctx, 20, 120, 2);
 			nk_label(ctx, server.longname.c_str(), NK_TEXT_LEFT);
 			nk_label(ctx, server.shortname.c_str(), NK_TEXT_RIGHT);
-			nk_layout_row_static(ctx, 20, 120, 1);
-			nk_label(ctx, "Status: Needs patch", NK_TEXT_LEFT);
-			nk_layout_row_static(ctx, 20, 120, 1);
-
+			nk_layout_row_static(ctx, 20, 120, 3);
+			nk_label(ctx, "Status: Out of date", NK_TEXT_LEFT);
 			if (nk_button_label(ctx, "Download")) {
-			
-			
+
+
 			}
-
-
 		}
 	}
 	else {
@@ -184,11 +203,9 @@ void EQOverlay::InitNuklearCtx(IDirect3DDevice9* device) {
 		s->text.color = text_color;
 		s->window.border_color = border;
 		s->window.border = 1.5f;
-		s->window.header.label_normal = nk_rgb(255, 218, 96); // Normal title color
-		s->window.header.label_hover = nk_rgb(255, 218, 96);  // Hover title color
-		s->window.header.label_active = nk_rgb(255, 218, 96); // Active (focused) title color
+		s->window.header.label_normal = s->window.header.label_hover = s->window.header.label_active = nk_rgb(255, 218, 96);
 		s->window.header.align = NK_HEADER_RIGHT;
-		s->window.header.normal = s->window.header.active = nk_style_item_color(nk_rgb(2, 2, 15));
+		s->window.header.normal = s->window.header.active = nk_style_item_color(nk_rgb(42, 42, 75));
 		s->button.text_active = text_color;
 		s->button.border_color = text_color;
 		s->window.padding = nk_vec2(10, 10); // Adds 10px padding around all sides of each widget
