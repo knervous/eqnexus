@@ -1,9 +1,0 @@
-LIBRARY dinput8
-EXPORTS
-    DirectInput8Create=Proxy_DirectInput8Create
-    DllCanUnloadNow=Proxy_DllCanUnloadNow
-    DllGetClassObject=Proxy_DllGetClassObject
-    DllRegisterServer=Proxy_DllRegisterServer
-    DllUnregisterServer=Proxy_DllUnregisterServer
-    GetdfDIJoystick=Proxy_GetdfDIJoystick
-	

@@ -8,11 +8,14 @@
 *.exe
 .vs/
 
+
 # Build directories
 build/
 bin/
 out/
 Debug/
+external/
+vcpkg_installed/
 
 # System files
 .DS_Store

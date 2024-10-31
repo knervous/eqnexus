@@ -1,1 +1,6 @@
-Start of a proof of concept for generic entrypoint for ROF2 client dll proxying. Currently set up testing functionality within one dll but will extend to call separate DLLs dynamically based on a plugin list.
+## Setting up the Project
+
+1. Clone the repository with `git clone --recurse-submodules`
+2. Run `external/vcpkg/bootstrap-vcpkg.bat`
+3. Run `external/vcpkg/vcpkg install --triplet x86-windows-static` in the project root to install dependencies.
+4. Build the project with your preferred build system.

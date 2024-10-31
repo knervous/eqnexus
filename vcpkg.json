@@ -1,0 +1,15 @@
+{
+    "name": "emupatcher",
+    "version": "1.0.0",
+    "dependencies": [
+        {
+            "name": "minhook"
+        },
+        {
+            "name": "rapidjson"
+        },
+        {
+            "name": "cpprestsdk"
+        }
+    ]
+}
