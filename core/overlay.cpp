@@ -151,7 +151,7 @@ void EQOverlay::OnRender(IDirect3DDevice9* device) {
 	struct nk_rect window_rect = nk_rect(window_x, window_y, window_width, window_height);
 
 	nk_style_push_font(ctx, &header_font->handle);
-	if (nk_begin(ctx, "EQ Nexus Server Patcher: NEW!", window_rect,
+	if (nk_begin(ctx, "EQ Nexus Server Patcher", window_rect,
 		NK_WINDOW_BORDER | NK_WINDOW_MOVABLE | NK_WINDOW_SCALABLE |
 		NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE)) {
 		nk_style_pop_font(ctx);
