@@ -4,12 +4,14 @@
         {
             "shortName": "eqrequiem",
             "longName": "Requiem",
-            "customFilesUrl": "https://eqsage.com/files/requiem.zip"
+            "customFilesUrl": "https://eqsage.com/files/requiem.zip",
+            "version": 1.0
         },
         {
             "shortName": "test",
             "longName": "Test Server",
-            "customFilesUrl": ""
+            "customFilesUrl": "",
+            "version": 0.1
         }
     ]
 }
