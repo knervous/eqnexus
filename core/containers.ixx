@@ -1,26 +1,13 @@
 #pragma once
-/*
- * MacroQuest: The extension platform for EverQuest
- * Copyright (C) 2002-present MacroQuest Authors
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
 
-#pragma once
-
-#include "allocator.h"
-#include "common.h"
-
-#include <cstdint>
-
-namespace eqlib {
+export module containers;
+import eqallocator;
+import common;
+import <cstdint>;
+import <string>;
+import <string_view>;
+import <numeric>;
+export namespace eqlib {
 
 	//----------------------------------------------------------------------------
 
@@ -1498,9 +1485,6 @@ namespace eqlib {
 		void resize(uint32_t newSize);
 		void reserve(uint32_t newCapacity);
 
-		ALT_MEMBER_GETTER_DEPRECATED(T*, m_data, Begin, "VeArray: Begin is deprecated, use data() or index operators.");
-		ALT_MEMBER_GETTER_DEPRECATED(uint32_t, m_size, Size, "VeArray: Size is deprecated, use size() instead.");
-		ALT_MEMBER_GETTER_DEPRECATED(uint32_t, m_capacity, Capacity, "VeArray: Capacity is deprecated, use capacity() instead.");
 
 	private:
 		/*0x00*/ T* m_data = nullptr;
@@ -1985,8 +1969,8 @@ namespace eqlib {
 	{
 	public:
 		T       Type[_Len];
-		UINT    Len;
-		UINT    Index;
+		uint32_t    Len;
+		uint32_t    Index;
 	};
 
 	// size: sizeof(NumBitsType) + sizeof(ElementType) + sizeof(void*)

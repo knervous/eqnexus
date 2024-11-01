@@ -1,27 +1,13 @@
-#pragma once
-/*
- * MacroQuest: The extension platform for EverQuest
- * Copyright (C) 2002-present MacroQuest Authors
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+export module login_frontend;
 
-#pragma once
-#include <Windows.h>
+import common;
+import containers;
+import cxstr;
+import <Windows.h>;
+import <dinput.h>;
+import <numeric>;
 
-#include <dinput.h>
-#include "common.h"
-#include "containers.h"
-#include "cxstr.h"
-
-namespace eqlib {
+export namespace eqlib {
 	//----------------------------------------------------------------------------
 
 	// Types used by the frontend a.k.a. eqmain.dll

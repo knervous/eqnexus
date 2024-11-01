@@ -1,13 +1,14 @@
 #pragma once
-#ifdef _DEBUG
-#include <thread>
-#include <atomic>
-#include <csignal>
-#include <cstdlib>
-#include <dinput.h>
-#include <cstdio>
-#include <iostream>
-#include "core.h"
+export module debug;
+import core;
+import <thread>;
+import <atomic>;
+import <csignal>;
+import <cstdlib>;
+import <dinput.h>;
+import <cstdio>;
+import <iostream>;
+
 
 bool ctrlRTriggered = false;
 bool ctrlETriggered = false;
@@ -16,17 +17,17 @@ std::thread eventMessageThread;
 std::atomic<bool> keepPolling{ false };
 
 // Named event handles
-HANDLE hUnloadEvent = NULL;
-HANDLE hReloadEvent = NULL;
+HANDLE hUnloadEvent = 0;
+HANDLE hReloadEvent = 0;
 
 void PollKeyboard() {
     std::cout << "Starting keyboard polling loop." << std::endl;
 
     while (keepPolling) {
-        if (!pKeyboardDevice) continue;
+        if (!GetKeyboardDevice()) continue;
 
         BYTE keyboardState[256];
-        HRESULT hr = pKeyboardDevice->GetDeviceState(sizeof(keyboardState), (LPVOID)&keyboardState);
+        HRESULT hr = GetKeyboardDevice()->GetDeviceState(sizeof(keyboardState), (LPVOID)&keyboardState);
         if (FAILED(hr)) {
             return;
         }
@@ -60,7 +61,6 @@ void PollKeyboard() {
 void PollEventsAndMessages() {
     std::cout << "Starting event and message polling loop." << std::endl;
 
-    // Create or open the named events
     hUnloadEvent = CreateEvent(NULL, TRUE, FALSE, TEXT("Global\\UnloadEvent"));
     hReloadEvent = CreateEvent(NULL, TRUE, FALSE, TEXT("Global\\ReloadEvent"));
 
@@ -70,22 +70,20 @@ void PollEventsAndMessages() {
     }
 
     while (keepPolling) {
-        // Check both unload and reload events at once
         HANDLE events[] = { hUnloadEvent, hReloadEvent };
         DWORD waitResult = MsgWaitForMultipleObjects(2, events, FALSE, 0, QS_ALLINPUT);
 
-        if (waitResult == WAIT_OBJECT_0) {  // hUnloadEvent was signaled
+        if (waitResult == WAIT_OBJECT_0) {
             std::cout << "Unload event triggered. Unloading module..." << std::endl;
             UnloadCore();
             ResetEvent(hUnloadEvent);
         }
-        else if (waitResult == WAIT_OBJECT_0 + 1) {  // hReloadEvent was signaled
+        else if (waitResult == WAIT_OBJECT_0 + 1) {
             std::cout << "Reload event triggered. Reloading module..." << std::endl;
             LoadCore();
             ResetEvent(hReloadEvent);
         }
 
-        // Process any pending input messages
         if (waitResult == WAIT_OBJECT_0 + 2) {
             MSG msg;
             while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
@@ -97,21 +95,20 @@ void PollEventsAndMessages() {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 
-    // Clean up event handles
     CloseHandle(hUnloadEvent);
     CloseHandle(hReloadEvent);
     hUnloadEvent = NULL;
     hReloadEvent = NULL;
 }
 
-void StartDebugPoll() {
+export void StartDebugPoll() {
     if (!keepPolling.exchange(true)) {
         debugPollThread = std::thread(PollKeyboard);
         eventMessageThread = std::thread(PollEventsAndMessages);
     }
 }
 
-void StopDebugPoll() {
+export void StopDebugPoll() {
     if (keepPolling.exchange(false)) {
         if (debugPollThread.joinable()) {
             debugPollThread.join();
@@ -122,11 +119,9 @@ void StopDebugPoll() {
     }
 }
 
-void SignalHandler(int signal) {
+export void SignalHandler(int signal) {
     if (signal == SIGINT) {
         std::cout << "SIGINT received. Stopping debug poll..." << std::endl;
         StopDebugPoll();
     }
 }
-
-#endif

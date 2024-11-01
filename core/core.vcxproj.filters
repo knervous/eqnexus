@@ -16,90 +16,75 @@
     <Filter Include="Header Files\eq">
       <UniqueIdentifier>{da6875af-2c28-4051-8df7-0da7bbe96a98}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Modules">
+      <UniqueIdentifier>{c7b1a62f-1e0d-493b-bf48-1997069a0def}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="framework.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="pch.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="overlay.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="eqmodule.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="nuklear.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="d3d9_hooks.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="hook.h">
+      <Filter>Header Files\eq</Filter>
     </ClInclude>
     <ClInclude Include="nuklear_d3d9.h">
       <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="eq\eqgame.h">
-      <Filter>Header Files\eq</Filter>
-    </ClInclude>
-    <ClInclude Include="eq\common.h">
-      <Filter>Header Files\eq</Filter>
-    </ClInclude>
-    <ClInclude Include="eq\containers.h">
-      <Filter>Header Files\eq</Filter>
-    </ClInclude>
-    <ClInclude Include="eq\cxstr.h">
-      <Filter>Header Files\eq</Filter>
-    </ClInclude>
-    <ClInclude Include="eq\eq.h">
-      <Filter>Header Files\eq</Filter>
-    </ClInclude>
-    <ClInclude Include="eq\allocator.h">
-      <Filter>Header Files\eq</Filter>
-    </ClInclude>
-    <ClInclude Include="eq\offset_utils.h">
-      <Filter>Header Files\eq</Filter>
-    </ClInclude>
-    <ClInclude Include="eq\login_frontend.h">
-      <Filter>Header Files\eq</Filter>
-    </ClInclude>
-    <ClInclude Include="eq\eqmain.h">
-      <Filter>Header Files\eq</Filter>
-    </ClInclude>
-    <ClInclude Include="eq\globals.h">
-      <Filter>Header Files\eq</Filter>
-    </ClInclude>
-    <ClInclude Include="eq\eqgraphics.h">
-      <Filter>Header Files\eq</Filter>
-    </ClInclude>
-    <ClInclude Include="eq\forward_decls.h">
-      <Filter>Header Files\eq</Filter>
-    </ClInclude>
-    <ClInclude Include="eq\expansions.h">
-      <Filter>Header Files\eq</Filter>
-    </ClInclude>
-    <ClInclude Include="hook.h">
-      <Filter>Header Files\eq</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="core.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="pch.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="offset_utils.ixx">
+      <Filter>Modules</Filter>
     </ClCompile>
-    <ClCompile Include="overlay.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="common.ixx">
+      <Filter>Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="containers.ixx">
+      <Filter>Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="cxstr.ixx">
+      <Filter>Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="eq.ixx">
+      <Filter>Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="eqgame.ixx">
+      <Filter>Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="eqgraphics.ixx">
+      <Filter>Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="eqmain.ixx">
+      <Filter>Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="globals.ixx">
+      <Filter>Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="login_frontend.ixx">
+      <Filter>Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="allocator.ixx">
+      <Filter>Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="overlay.ixx">
+      <Filter>Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="d3d9.ixx">
+      <Filter>Modules</Filter>
     </ClCompile>
     <ClCompile Include="nuklear_impl.cpp">
-      <Filter>Header Files</Filter>
-    </ClCompile>
-    <ClCompile Include="d3d9.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="eq\globals.cpp">
-      <Filter>Header Files\eq</Filter>
+    <ClCompile Include="http.ixx">
+      <Filter>Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="zip.ixx">
+      <Filter>Modules</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

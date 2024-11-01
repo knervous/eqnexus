@@ -6,7 +6,10 @@
             "name": "minhook"
         },
         {
-            "name": "cpprestsdk"
+            "name": "rapidjson"
+        },
+        {
+            "name": "zlib"
         }
     ]
 }

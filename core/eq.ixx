@@ -1,8 +1,10 @@
 #pragma once
-#include <Windows.h>
-#include <numeric>
+export module eq;
 
-struct [[offsetcomments]] EverQuestinfo
+import <Windows.h>;
+import <numeric>;
+
+export struct [[offsetcomments]] EverQuestinfo
 {
 	/*0x00000*/ HWND              Wnd;
 	/*0x00004*/ HINSTANCE         hInst;
@@ -22,7 +24,7 @@ struct [[offsetcomments]] EverQuestinfo
 	/*0x0003c*/ uint8_t           Unknown0x0003c;
 };
 
-class CEverQuest
+export class CEverQuest
 {
 public:
 

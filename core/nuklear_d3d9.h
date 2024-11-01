@@ -195,7 +195,7 @@ nk_d3d9_render(enum nk_anti_aliasing AA)
             hr = IDirect3DDevice9_DrawIndexedPrimitiveUP(d3d9.device, D3DPT_TRIANGLELIST,
                 0, vertex_count, cmd->elem_count / 3, offset, D3DFMT_INDEX16,
                 nk_buffer_memory_const(&vbuf), sizeof(struct nk_d3d9_vertex));
-           // NK_ASSERT(SUCCEEDED(hr));
+            // NK_ASSERT(SUCCEEDED(hr));
             offset += cmd->elem_count;
         }
 

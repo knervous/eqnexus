@@ -1,6 +1,10 @@
-#include "pch.h"
+
+import core;
+import debug;
+
 #include <Windows.h>
 #include <cstdio>
+#include <csignal>
 #include <string>
 #include <map>
 #include <iostream>
@@ -8,8 +12,6 @@
 #include <d3d9.h>
 #include "MinHook.h"
 
-#include "core.h"
-#include "debug.h"
 
 typedef HRESULT(WINAPI* CreateInputDevice_t)(IDirectInput8A*, REFGUID, LPDIRECTINPUTDEVICE8A*, LPUNKNOWN);
 IDirectInputDevice8A* pKeyboardDevice = nullptr;
@@ -106,14 +108,13 @@ HRESULT WINAPI HookedCreateInputDevice(IDirectInput8A* pDirectInput, REFGUID rgu
 
     if (SUCCEEDED(hr) && lplpDirectInputDevice) {
         if (rguid == MyGUID_SysKeyboard) {
-            pKeyboardDevice = *lplpDirectInputDevice;
+            SetKeyboardDevice(*lplpDirectInputDevice);
         }
         else if (rguid == MyGUID_SysMouse) {
-            pMouseDevice = *lplpDirectInputDevice;
+            SetMouseDevice(*lplpDirectInputDevice);
         }
     }
-    if (pKeyboardDevice && pMouseDevice) {
-        // Hot reloading for quick workflow
+    if (GetKeyboardDevice() && GetMouseDevice()) {
 #ifdef _DEBUG
         StartDebugPoll();
         std::signal(SIGINT, SignalHandler);

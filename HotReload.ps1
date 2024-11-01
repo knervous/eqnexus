@@ -12,7 +12,10 @@ $coreDllDestination = "$PSScriptRoot\..\everquest_rof2\eqnexus\core.dll"
 $process = Get-Process -Name "eqgame" -ErrorAction SilentlyContinue
 if ($process -eq $null) {
     Write-Host "Process eqgame.exe not found."
-    exit 1
+    Write-Host "Attempting to copy core.dll (Attempt $($attempts + 1) of $maxAttempts)..."
+    Copy-Item -Path $coreDllSource -Destination $coreDllDestination -Force
+    Write-Host "core.dll copied successfully."
+    exit 0
 }
 $processId = $process.Id
 Write-Host "Found eqgame.exe with PID: $processId"

@@ -1,13 +1,13 @@
-#include "pch.h"
+import globals;
+import overlay;
+import d3d9_hooks;
+
+#include <MinHook.h>
 #include <iostream>
 #include <cstdio>
 
 #include <vector>
 #include <dinput.h>
-#include "eqmodule.h"
-#include "d3d9_hooks.h"
-#include "overlay.h"
-#include "eq/globals.h"
 
 std::unique_ptr<EQOverlay> eqoverlay = nullptr;
 
