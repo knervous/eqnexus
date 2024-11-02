@@ -1,6 +1,6 @@
 export module zipextractor;
 
-#include <zlib.h>
+#include <minizip/unzip.h>
 import <string>;
 import <vector>;
 import <iostream>;
@@ -9,23 +9,18 @@ import <filesystem>;
 
 namespace fs = std::filesystem;
 
-struct ZipFileHeader {
-    uint32_t signature;
-    uint16_t version;
-    uint16_t flags;
-    uint16_t compression;
-    uint16_t modTime;
-    uint16_t modDate;
-    uint32_t crc32;
-    uint32_t compressedSize;
-    uint32_t uncompressedSize;
-    uint16_t fileNameLength;
-    uint16_t extraFieldLength;
-};
+constexpr uint32_t MOD_ADLER = 65521;
 
-bool ReadZipFileHeader(std::ifstream& file, ZipFileHeader& header) {
-    file.read(reinterpret_cast<char*>(&header), sizeof(header));
-    return header.signature == 0x04034b50;  // ZIP local file header signature
+unsigned long adler32(unsigned long adler, const uint8_t* buf, uint32_t len) {
+    uLong A = adler & 0xFFFF;
+    uLong B = (adler >> 16) & 0xFFFF;
+
+    for (uInt i = 0; i < len; ++i) {
+        A = (A + buf[i]) % MOD_ADLER;
+        B = (B + A) % MOD_ADLER;
+    }
+
+    return (B << 16) | A;
 }
 
 export namespace zipextractor {
@@ -67,70 +62,58 @@ export namespace zipextractor {
         return cumulativeChecksum;
     }
     bool ExtractAllFilesFromZip(const std::string& zipPath) {
-        fs::path outputDir = fs::path(zipPath).parent_path();
-        std::ifstream file(zipPath, std::ios::binary);
-
-        if (!file.is_open()) {
+        unzFile zipfile = unzOpen(zipPath.c_str());
+        if (!zipfile) {
             std::cerr << "Failed to open ZIP file: " << zipPath << std::endl;
             return false;
         }
 
-        while (true) {
-            ZipFileHeader header;
-            if (!ReadZipFileHeader(file, header)) {
-                break;
-            }
+        fs::path output_dir = fs::path(zipPath).parent_path();
 
-            std::vector<char> fileName(header.fileNameLength);
-            file.read(fileName.data(), header.fileNameLength);
-            std::string outputFileName(fileName.begin(), fileName.end());
-
-            file.seekg(header.extraFieldLength, std::ios::cur);
-
-            fs::path outputPath = outputDir / outputFileName;
-            fs::create_directories(outputPath.parent_path());
-
-            std::vector<char> compressedData(header.compressedSize);
-            file.read(compressedData.data(), header.compressedSize);
-
-            std::vector<char> decompressedData(header.uncompressedSize);
-            if (header.compression == 0) {
-                decompressedData = std::move(compressedData);
-            }
-            else if (header.compression == 8) {
-                z_stream stream{};
-                stream.next_in = reinterpret_cast<Bytef*>(compressedData.data());
-                stream.avail_in = static_cast<uInt>(compressedData.size());
-                stream.next_out = reinterpret_cast<Bytef*>(decompressedData.data());
-                stream.avail_out = static_cast<uInt>(decompressedData.size());
-
-                if (inflateInit2(&stream, -MAX_WBITS) != Z_OK) {
-                    std::cerr << "Failed to initialize zlib decompression" << std::endl;
-                    return false;
-                }
-
-                int result = inflate(&stream, Z_FINISH);
-                inflateEnd(&stream);
-
-                if (result != Z_STREAM_END) {
-                    std::cerr << "Decompression failed for file: " << outputFileName << std::endl;
-                    return false;
-                }
-            }
-            else {
-                std::cerr << "Unsupported compression method for file: " << outputFileName << std::endl;
-                return false;
-            }
-
-            std::ofstream outFile(outputPath, std::ios::binary);
-            if (!outFile.is_open()) {
-                std::cerr << "Failed to create output file: " << outputPath << std::endl;
-                return false;
-            }
-            outFile.write(decompressedData.data(), decompressedData.size());
-            outFile.close();
+        if (unzGoToFirstFile(zipfile) != UNZ_OK) {
+            std::cerr << "Failed to go to first file in ZIP" << std::endl;
+            unzClose(zipfile);
+            return false;
         }
 
+        do {
+            char filename[256];
+            unz_file_info file_info;
+            if (unzGetCurrentFileInfo(zipfile, &file_info, filename, sizeof(filename), nullptr, 0, nullptr, 0) != UNZ_OK) {
+                std::cerr << "Failed to get file info" << std::endl;
+                unzClose(zipfile);
+                return false;
+            }
+
+            if (unzOpenCurrentFile(zipfile) != UNZ_OK) {
+                std::cerr << "Failed to open file in ZIP" << std::endl;
+                unzClose(zipfile);
+                return false;
+            }
+
+            fs::path output_path = output_dir / filename;
+            fs::create_directories(output_path.parent_path());
+
+            std::ofstream out_file(output_path, std::ios::binary);
+            if (!out_file.is_open()) {
+                std::cerr << "Failed to create output file: " << output_path << std::endl;
+                unzCloseCurrentFile(zipfile);
+                unzClose(zipfile);
+                return false;
+            }
+
+            char buffer[4096];
+            int bytes_read;
+            while ((bytes_read = unzReadCurrentFile(zipfile, buffer, sizeof(buffer))) > 0) {
+                out_file.write(buffer, bytes_read);
+            }
+
+            out_file.close();
+            unzCloseCurrentFile(zipfile);
+
+        } while (unzGoToNextFile(zipfile) == UNZ_OK);
+
+        unzClose(zipfile);
         return true;
     }
 }

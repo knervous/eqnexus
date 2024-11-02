@@ -91,6 +91,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
         if (MH_Initialize() != MH_OK) {
             return FALSE;
         }
+
         break;
     }
     case DLL_PROCESS_DETACH:

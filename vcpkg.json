@@ -9,7 +9,7 @@
             "name": "rapidjson"
         },
         {
-            "name": "zlib"
+            "name": "minizip"
         }
     ]
 }

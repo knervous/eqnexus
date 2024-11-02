@@ -35,15 +35,13 @@ struct ServerInfo {
     std::vector<std::string> hosts = {};
     bool up_to_date = false;
     bool downloading = false;
-    bool error = false;
+    std::string error = "";
     double pct_downloaded = 0.0;
-    const std::string& GetPath() {
-        return "eqnexus/" + shortname;
-    };
+
     void ValidateInstall() {
-        fs::path root_path = GetPath();
-        fs::path hash_path = root_path / "hash.txt";
-        fs::path version_path = root_path / "hash.txt";
+        const auto& root_path = "eqnexus/" + shortname;
+        fs::path hash_path = root_path + "/hash.txt";
+        fs::path version_path = root_path + "/version.txt";
 
         if (!fs::exists(root_path) || !fs::exists(hash_path) || !fs::exists(version_path)) {
             up_to_date = false;
@@ -68,12 +66,13 @@ struct ServerInfo {
         up_to_date = true;
     };
     void WriteHashAndVersion() {
-        const auto adler = zipextractor::ComputeDirectoryChecksum(GetPath());
-        fs::path hash_path = GetPath() + "/hash.txt";
+        const auto& root_path = "eqnexus/" + shortname;
+        const auto adler = zipextractor::ComputeDirectoryChecksum(root_path);
+        fs::path hash_path = root_path + "/hash.txt";
         std::ofstream hash_out(hash_path, std::ios::trunc);
         hash_out << adler;
-        fs::path version_path = GetPath() + "/version.txt";
-        std::ofstream version_out(hash_path, std::ios::trunc);
+        fs::path version_path = root_path + "/version.txt";
+        std::ofstream version_out(version_path, std::ios::trunc);
         version_out << version;
     }
 };
@@ -91,7 +90,7 @@ private:
     void OnRender(IDirect3DDevice9* device);
     void OnReset(IDirect3DDevice9* device);
     void PollDirectInputForNuklear();
-    void DownloadServerFiles(ServerInfo server);
+    void DownloadServerFiles(ServerInfo& server);
     void InitNuklearCtx(IDirect3DDevice9* device);
     int GetGameState();
     void ShowPopup(const std::string& title, const std::string& msg) {
@@ -213,7 +212,7 @@ void EQOverlay::InitializeBounds() {
 void EQOverlay::FetchServerData() {
     status = "Fetching Server Metadata...";
     const auto& url = ReadIniValue("ServerMetadata", "ManifestUrl", iniPath);
-    status = url;
+    servers.clear();
     auto response = http::DownloadJson(url);
     rapidjson::Document document;
     document.Parse(response.c_str());
@@ -241,7 +240,7 @@ void EQOverlay::FetchServerData() {
                 const rapidjson::Value& hosts = server["hosts"];
                 for (const auto& host : hosts.GetArray()) {
                     if (host.IsString()) {
-                        info.hosts.push_back(hosts.GetString());
+                        info.hosts.push_back(host.GetString());
                     }
                 }
             }
@@ -251,42 +250,44 @@ void EQOverlay::FetchServerData() {
     }
 }
 
-void EQOverlay::DownloadServerFiles(ServerInfo server) {
+void EQOverlay::DownloadServerFiles(ServerInfo& server) {
     task_running = true;
     std::thread t([this, &server]() {
-        server.downloading = true;
         if (!server.url.empty()) {
-            std::string path("eqnexus/");
-            path += server.shortname;
+            const auto& path = "eqnexus/" + server.shortname;
             if (!fs::exists(path)) {
                 if (fs::create_directories(path)) {
                     std::cout << "Directory created: " << path << std::endl;
-                    auto zip_path = path + "/" + server.shortname + ".zip";
-                    server.downloading = true;
-                    if (http::DownloadBinary(server.url, path, [this, &server](double pct) {
-                        server.pct_downloaded = pct;
-                    })) {
-                        if (zipextractor::ExtractAllFilesFromZip(zip_path) && fs::remove(zip_path)) {
-                            server.WriteHashAndVersion();
-                            server.ValidateInstall();
-                        }
-                        else {
-                            ShowPopup("Extract Error", "Error extracting zip from: " + zip_path);
-                        }
-                    }
-                    else {
-                       
-                    }
-                    server.downloading = false;
-                    server.up_to_date = false;
-                }
-                else {
+                } else {
                     ShowPopup("Filesystem Error", "Was unable to create directory: " + path);
                     task_running = false;
                     return;
                 }
             }
+            auto zip_path = path + "/" + server.shortname + ".zip";
+            {
+                server.downloading = true;
+            }
+            if (http::DownloadBinary(server.url, zip_path, [this, &server](double pct) {
+         
+            })) {
+                if (zipextractor::ExtractAllFilesFromZip(zip_path) && fs::remove(zip_path)) {
+                    server.WriteHashAndVersion();
+                }
+                else {
+                    ShowPopup("Extract Error", "Error extracting zip from: " + zip_path);
+                }
+            }
+            else {
+                server.error = "HTTP Failure";
+            }
+            server.downloading = false;
+            server.ValidateInstall();
         }
+        else {
+            server.error = "No URL defined";
+        }
+  
         task_running = false;
     });
     t.detach();
@@ -318,16 +319,38 @@ void EQOverlay::OnRender(IDirect3DDevice9* device) {
         nk_style_pop_font(ctx);
         nk_layout_row_dynamic(ctx, 30, 1);
         nk_label(ctx, status.c_str(), NK_TEXT_CENTERED);
+        float ww = nk_window_get_content_region(ctx).w;
+        float button_width = 135.0f;
+        float x_pos = (ww - button_width) / 2;
+
+        nk_layout_space_begin(ctx, NK_STATIC, 40, 1);
+        nk_layout_space_push(ctx, nk_rect(x_pos, 0, button_width, 30));
+
+        if (nk_button_label(ctx, "Refresh Server List")) {
+            std::thread t(std::bind(&EQOverlay::FetchServerData, this));
+            t.detach();
+        }
+
+        nk_layout_space_end(ctx);
 
         for (auto& server : servers) {
             DrawSeparator(ctx);
-            nk_layout_row_static(ctx, 20, 120, 2);
+            nk_layout_row_dynamic(ctx, 20, 2);
             nk_label(ctx, server.longname.c_str(), NK_TEXT_LEFT);
             nk_label(ctx, server.shortname.c_str(), NK_TEXT_RIGHT);
-            nk_layout_row_static(ctx, 20, 120, 3);
-            nk_label(ctx, "Status: Out of date", NK_TEXT_LEFT);
-            if (nk_button_label(ctx, "Download")) {
+
+            nk_layout_row_dynamic(ctx, 25, 2);
+            std::string status = server.downloading ? 
+                "Downloading..." : !server.error.empty() ?
+                    server.error : server.up_to_date ?
+                        "Up to date" : "Needs update";
+            nk_label(ctx, ("Status: " + status).c_str(), NK_TEXT_LEFT);
+            if (!task_running && !server.up_to_date) {
+                if (nk_button_label(ctx, "Download")) {
+                    DownloadServerFiles(server);
+                }
             }
+           
         }
     }
     else {
@@ -363,9 +386,14 @@ void EQOverlay::InitNuklearCtx(IDirect3DDevice9* device) {
         s->window.border = 1.5f;
         s->window.header.label_normal = s->window.header.label_hover = s->window.header.label_active = nk_rgb(255, 218, 96);
         s->window.header.align = NK_HEADER_RIGHT;
-        s->window.header.normal = s->window.header.active = nk_style_item_color(nk_rgb(42, 42, 75));
-        s->button.text_active = text_color;
-        s->button.border_color = text_color;
+        s->window.header.normal = s->window.header.active = nk_style_item_color(nk_rgb(41, 56, 74));
+        s->button.text_active = border;
+        s->button.text_hover = nk_rgb(255, 218, 96);
+        s->button.text_normal = text_color;
+        s->button.normal = nk_style_item_color(nk_rgb(41, 56, 74));
+        s->button.hover = nk_style_item_color(nk_rgb(30, 30, 50));
+        s->button.active = nk_style_item_color(nk_rgb(22, 22, 55));
+        s->button.border_color = border;
         s->window.padding = nk_vec2(10, 10);
         s->window.spacing = nk_vec2(5, 5);
 
