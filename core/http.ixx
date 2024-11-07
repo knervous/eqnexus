@@ -2,11 +2,11 @@ export module http;
 
 import <Windows.h>;
 import <numeric>;
-#include <wininet.h>
 import <string>;
 import <fstream>;
 import <iostream>;
 import <functional>;
+#include <wininet.h>
 
 #pragma comment(lib, "wininet.lib")
 
@@ -52,7 +52,6 @@ export namespace http {
         return result;
     }
 
-    // Download binary ZIP data to a file with progress callback
     bool DownloadBinary(const std::string& url, const std::string& outputFilePath, std::function<void(double)> progress_callback) {
         HINTERNET hInternet = InternetOpen(user_agent, INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
         if (!hInternet) return false;
@@ -77,32 +76,23 @@ export namespace http {
             return false;
         }
 
-        // Get the total file size
         DWORD totalBytes = 0;
-        DWORD bytesAvailable = 0;
-        if (!InternetQueryDataAvailable(hConnect, &bytesAvailable, 0, 0)) {
-            totalBytes = 0; // Unknown total size
-        }
-        else {
-            totalBytes = bytesAvailable;
-        }
+        DWORD headerLength = sizeof(totalBytes);
+        HttpQueryInfo(hConnect, HTTP_QUERY_CONTENT_LENGTH | HTTP_QUERY_FLAG_NUMBER, &totalBytes, &headerLength, NULL);
 
         char buffer[1024];
         DWORD bytesRead;
         DWORD totalDownloaded = 0;
 
-        // Read and write data in chunks, calling the callback with progress
         while (InternetReadFile(hConnect, buffer, sizeof(buffer), &bytesRead) && bytesRead > 0) {
             outFile.write(buffer, bytesRead);
             totalDownloaded += bytesRead;
 
-            // Calculate progress and call the callback
             if (totalBytes > 0) {
                 double progress = (static_cast<double>(totalDownloaded) / totalBytes) * 100;
                 progress_callback(progress);
             }
             else {
-                // If total size is unknown, call callback with -1 (or skip this condition if not needed)
                 progress_callback(-1);
             }
         }

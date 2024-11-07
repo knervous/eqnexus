@@ -12,7 +12,7 @@ export namespace eqlib {
 
 	// Types used by the frontend a.k.a. eqmain.dll
 
-	class [[offsetcomments]] LoginController
+	class  LoginController
 	{
 	public:
 		LoginController(HINSTANCE hInstance, HWND hWnd);
@@ -66,7 +66,7 @@ export namespace eqlib {
 		eServerStatus_Locked = 4
 	};
 
-	struct [[offsetcomments]] EQClientServerData
+	struct  EQClientServerData
 	{
 		/*0x00*/ int      ID;
 		/*0x04*/ CXStr         ServerName;
@@ -93,7 +93,7 @@ export namespace eqlib {
 		__declspec(property(get = get_Zero)) int Expansion;
 	};
 
-	class [[offsetcomments]] LoginServerCallback
+	class  LoginServerCallback
 	{
 	public:
 		virtual void OnConnect() {}
@@ -119,7 +119,7 @@ export namespace eqlib {
 		virtual void OnKickMyPlayerReply(bool, int, CXStr, void*) {}
 	};
 
-	class [[offsetcomments]] ChannelServerHandler
+	class  ChannelServerHandler
 	{
 	public:
 		virtual void Channel_VirtualFunction1(bool) {}
@@ -127,13 +127,13 @@ export namespace eqlib {
 		// more virtuals ...
 	};
 
-	struct [[offsetcomments]] EQDevice
+	struct  EQDevice
 	{
 		/*0x00*/ char Name[0x40];
 		/*0x40*/
 	};
 
-	struct [[offsetcomments]] EQLogin
+	struct  EQLogin
 	{
 		/*0x000*/ EQDevice  Devices[0x10];
 		/*0x400*/ int       NumDevices;
@@ -157,7 +157,7 @@ export namespace eqlib {
 	};
 
 
-	struct [[offsetcomments]] IniKeyValuePair
+	struct  IniKeyValuePair
 	{
 		/*0x00*/ CXStr            key;
 		/*0x04*/ CXStr            value;
@@ -167,7 +167,7 @@ export namespace eqlib {
 		/*0x14*/
 	};
 
-	struct [[offsetcomments]] IniFileSection
+	struct  IniFileSection
 	{
 		/*0x00*/ HashTable<IniKeyValuePair*> values;
 		/*0x10*/ int              numValues;
@@ -179,7 +179,7 @@ export namespace eqlib {
 		/*0x28*/
 	};
 
-	class [[offsetcomments]] IniFileWrapper
+	class  IniFileWrapper
 	{
 	public:
 		virtual ~IniFileWrapper() {}
@@ -192,7 +192,7 @@ export namespace eqlib {
 		/*0x24*/
 	};
 
-	struct [[offsetcomments]] TimeCheck
+	struct  TimeCheck
 	{
 		/*0x00*/ int64_t    lastTimeChecked;
 		/*0x08*/ int64_t    elapsedTime;
@@ -200,7 +200,7 @@ export namespace eqlib {
 	};
 
 	// LoginClient
-	class [[offsetcomments]] LoginClient : public LoginServerCallback,
+	class  LoginClient : public LoginServerCallback,
 		public ChannelServerHandler
 	{
 	public:

@@ -4,7 +4,7 @@ export module eq;
 import <Windows.h>;
 import <numeric>;
 
-export struct [[offsetcomments]] EverQuestinfo
+export struct EverQuestinfo
 {
 	/*0x00000*/ HWND              Wnd;
 	/*0x00004*/ HINSTANCE         hInst;
@@ -49,4 +49,43 @@ public:
 	/*0x005c4*/ int                   WorldState;                   // 0 everything is fine, 1 we are getting disconnected 2 player not released from zone
 	/*0x005c8*/ int                   GameState;
 	
+};
+
+
+export struct ZoneEntry {
+	void* vtable;
+	int buffer;
+	int zoneType;
+	int zoneId;
+	char shortName[128];
+	uint8_t flag_144;
+	char longName[256];
+	uint8_t flag_401;
+	int unk1;
+	int flags;
+	int x;
+	int stringId;
+	int y;
+	int z;
+	int unk2;
+	int unk3;
+	int zero_fields[16];
+};
+
+export struct ZoneManager {
+	void* vtable;
+	int unk1;
+	int unk2;
+	int unk3;
+	int unk4;
+	int unk5;
+	DWORD tickCount;
+	DWORD time;
+	ZoneEntry* NoZone;
+	ZoneEntry* zoneData[1000];
+};
+
+export struct TableItem {
+	int id;
+	const char* name;
 };

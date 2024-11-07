@@ -167,7 +167,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="allocator.ixx" />
+    <ClCompile Include="animation.ixx" />
     <ClCompile Include="common.ixx" />
+    <ClCompile Include="config.ixx" />
     <ClCompile Include="containers.ixx" />
     <ClCompile Include="core.cpp" />
     <ClCompile Include="cxstr.ixx" />
@@ -176,13 +178,21 @@
     <ClCompile Include="eqgame.ixx" />
     <ClCompile Include="eqgraphics.ixx" />
     <ClCompile Include="eqmain.ixx" />
+    <ClCompile Include="filesystem.ixx" />
     <ClCompile Include="globals.ixx" />
+    <ClCompile Include="hooks.ixx" />
     <ClCompile Include="http.ixx" />
+    <ClCompile Include="login.ixx" />
     <ClCompile Include="login_frontend.ixx" />
+    <ClCompile Include="npc.ixx" />
     <ClCompile Include="nuklear_impl.cpp" />
     <ClCompile Include="offset_utils.ixx" />
+    <ClCompile Include="options.ixx" />
     <ClCompile Include="overlay.ixx" />
+    <ClCompile Include="server.ixx" />
+    <ClCompile Include="utility.ixx" />
     <ClCompile Include="zip.ixx" />
+    <ClCompile Include="zone.ixx" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

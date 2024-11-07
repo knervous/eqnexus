@@ -91,7 +91,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
         if (MH_Initialize() != MH_OK) {
             return FALSE;
         }
-
+        LoadCore();
         break;
     }
     case DLL_PROCESS_DETACH:
@@ -121,7 +121,7 @@ HRESULT WINAPI HookedCreateInputDevice(IDirectInput8A* pDirectInput, REFGUID rgu
         std::signal(SIGINT, SignalHandler);
         std::atexit(StopDebugPoll);
 #endif
-        LoadCore();
+        LoadDevices();
     }
 
     return hr;

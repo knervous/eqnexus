@@ -53,8 +53,8 @@ public:
 
         void** vtable = *reinterpret_cast<void***>(pDummyDevice);
 
-        if (MH_CreateHook(vtable[41], &D3D9Hooks::HookedBeginScene, reinterpret_cast<void**>(&original_beginscene)) == MH_OK) {
-            MH_EnableHook(vtable[41]);
+        if (MH_CreateHook(vtable[42], &D3D9Hooks::HookedBeginScene, reinterpret_cast<void**>(&original_beginscene)) == MH_OK) {
+            MH_EnableHook(vtable[42]);
         }
         else {
             std::cerr << "Failed to create hook for BeginScene." << std::endl;

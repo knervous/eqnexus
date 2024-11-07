@@ -6,7 +6,8 @@ import "Windows.h";
 import <iostream>;
 import <cstdio>;
 
-typedef bool (*CoreInitialize_t)(void* keyboard, void* mouse);
+typedef bool (*CoreInitialize_t)();
+typedef bool (*CoreSetDevices_t)(void* keyboard, void* mouse);
 typedef bool (*CoreTeardown_t)();
 
 IDirectInputDevice8A* pKeyboardDevice;
@@ -22,7 +23,7 @@ export void LoadCore() {
     auto lib = LoadLibrary(L"eqnexus/core.dll");
     if (lib) {
         CoreInitialize_t Initialize = (CoreInitialize_t)GetProcAddress(lib, "Initialize");
-        bool success = Initialize(pKeyboardDevice, pMouseDevice);
+        bool success = Initialize();
         if (success) {
             std::cout << "Initialization successful!" << std::endl;
             core_loaded = true;
@@ -33,6 +34,20 @@ export void LoadCore() {
     }
     else {
         MessageBox(NULL, L"Nexus Core not found in eqnexus/core.dll", L"Missing files", MB_OK);
+    }
+}
+
+export void LoadDevices() {
+    auto lib = GetModuleHandle(L"eqnexus/core.dll");
+    if (lib) {
+        CoreSetDevices_t SetDevices = (CoreSetDevices_t)GetProcAddress(lib, "SetDevices");
+        bool success = SetDevices(pKeyboardDevice, pMouseDevice);
+        if (success) {
+            std::cout << "Set Devices success" << std::endl;
+        }
+        else {
+            std::cout << "Set Devices failed." << std::endl;
+        }
     }
 }
 

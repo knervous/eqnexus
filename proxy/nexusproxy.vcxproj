@@ -105,6 +105,9 @@
     <PostBuildEvent>
       <Command>copy "$(SolutionDir)$(Configuration)\dinput8.dll" "$(SolutionDir)..\everquest_rof2\dinput8.dll"</Command>
     </PostBuildEvent>
+    <CustomBuildStep>
+      <Command>copy "$(SolutionDir)$(Configuration)\dinput8.dll" "$(SolutionDir)..\everquest_rof2\dinput8.dll"</Command>
+    </CustomBuildStep>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>

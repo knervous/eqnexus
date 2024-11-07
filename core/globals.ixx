@@ -12,6 +12,7 @@ import login_frontend;
 import <dinput.h>;
 import <cstdint>;
 import <type_traits>;
+import <iostream>;
 
 namespace eqlib {
 
@@ -24,8 +25,8 @@ namespace eqlib {
     export constexpr uintptr_t EQLibraryPreferredAddress = 0x10000000;
 #endif
 
-    // Define the base addresses as extern variables to allow for external linkage.
     export uintptr_t EQGameBaseAddress = (uintptr_t)GetModuleHandle(nullptr);
+    export uintptr_t EQGraphicsBaseAddress = NULL;
     export uintptr_t EQMainBaseAddress = NULL;
 
     // Define utility functions to calculate dynamic offsets.
@@ -44,6 +45,8 @@ namespace eqlib {
     export uintptr_t pinstEverQuestInfo = FixEQGameOffset(pinstEverQuestInfo_x);
     export ForeignPointer<CEverQuest> pEverQuest;
     export EverQuestinfo* pEverQuestInfo = nullptr;
+
+    export HMODULE* ghEQMainInstance;
 
     export uintptr_t EQMain__CEQSuiteTextureLoader__GetTexture = 0;
     export uintptr_t EQMain__CLoginViewManager__HandleLButtonUp = 0;
@@ -70,10 +73,10 @@ namespace eqlib {
 
     // Define initialization functions
     export bool InitializeEQMainOffsets() {
-        if (EQMainBaseAddress == NULL) {
-            EQMainBaseAddress = (uintptr_t)GetModuleHandle(L"eqmain.dll");
+        EQMainBaseAddress = (uintptr_t)GetModuleHandle(L"eqmain.dll");
+        if (!EQMainBaseAddress) {
+            return false;
         }
-
         EQMain__CEQSuiteTextureLoader__GetTexture = FixEQMainOffset(EQMain__CEQSuiteTextureLoader__GetTexture_x);
         EQMain__LoginController__GiveTime = FixEQMainOffset(EQMain__LoginController__GiveTime_x);
         EQMain__LoginServerAPI__JoinServer = FixEQMainOffset(EQMain__LoginServerAPI__JoinServer_x);
@@ -92,8 +95,8 @@ namespace eqlib {
             EQMain__LoginController__ProcessKeyboardEvents = GetFunctionAddressAt(EQMain__LoginController__GiveTime + 9, 1, 4);
             EQMain__LoginController__ProcessMouseEvents = GetFunctionAddressAt(EQMain__LoginController__GiveTime + 22, 1, 4);
 #else
-            EQMain__LoginController__ProcessKeyboardEvents = GetFunctionAddressAt(EQMain__LoginController__GiveTime + 3, 1, 4);
-            EQMain__LoginController__ProcessMouseEvents = GetFunctionAddressAt(EQMain__LoginController__GiveTime + 11, 1, 4);
+            //EQMain__LoginController__ProcessKeyboardEvents = GetFunctionAddressAt(EQMain__LoginController__GiveTime + 3, 1, 4);
+            //EQMain__LoginController__ProcessMouseEvents = GetFunctionAddressAt(EQMain__LoginController__GiveTime + 11, 1, 4);
 #endif
         }
 
@@ -132,15 +135,18 @@ namespace eqlib {
         CleanupEQMainOffsets();
     }
 
-
     // Initialize function to setup offsets and globals
     export void InitializeGlobals() {
         if (!EQGameBaseAddress) {
             return;
         }
+        
         pEverQuestInfo = (EverQuestinfo*)pinstEverQuestInfo;
         pEverQuest = pinstCEverQuest;
-        InitializeEQMainOffsets();
+
+        ghEQMainInstance = (HINSTANCE*)FixEQGameOffset(__heqmain_x);
+
+        std::cout << "Set main instance" << *ghEQMainInstance << std::endl;
     }
 
 }

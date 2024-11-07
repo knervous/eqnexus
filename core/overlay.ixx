@@ -4,6 +4,11 @@ import globals;
 import d3d9_hooks;
 import http;
 import zipextractor;
+import utility;
+import hooks;
+import filesystem;
+import login;
+import server;
 
 import <windows.h>;
 import <d3d9.h>;
@@ -14,7 +19,6 @@ import <vector>;
 import <thread>;
 import <filesystem>;
 import <iostream>;
-import <span>;
 import "nuklear_d3d9.h";
 import <rapidjson/document.h>;
 import <fstream>;
@@ -24,7 +28,6 @@ namespace fs = std::filesystem;
 
 constexpr const char* iniPath = "eqnexus/config.ini";
 
-std::string ReadIniValue(std::string_view section, std::string_view key, const std::filesystem::path& iniFilePath);
 void DrawSeparator(struct nk_context* ctx);
 
 struct ServerInfo {
@@ -33,6 +36,7 @@ struct ServerInfo {
     std::string url = "";
     std::string version = "";
     std::vector<std::string> hosts = {};
+    int id = -1;
     bool up_to_date = false;
     bool downloading = false;
     std::string error = "";
@@ -92,16 +96,10 @@ private:
     void PollDirectInputForNuklear();
     void DownloadServerFiles(ServerInfo& server);
     void InitNuklearCtx(IDirect3DDevice9* device);
+    bool DoLogin(int server_id);
     int GetGameState();
-    void ShowPopup(const std::string& title, const std::string& msg) {
-        popup_title = title;
-        popup_msg = msg;
-        show_popup = true;
-    }
-    void ClearPopup() {
-        popup_title = "";
-        popup_msg = "";
-        show_popup = false;
+    void ShowPopup(const std::string& msg) {
+        Login::OpenModal(msg);
     }
 
     IDirectInputDevice8A* keyboard = nullptr;
@@ -110,10 +108,10 @@ private:
     char keyboard_state[256] = {};
     int mouse_x = 0;
     int mouse_y = 0;
-    int window_x = 0xFFFF;
-    int window_y = 0xFFFF;
-    int window_width = 300;
-    int window_height = 200;
+    float window_x = 0xFFFF;
+    float window_y = 0xFFFF;
+    float window_width = 300;
+    float window_height = 200;
 
     bool nuklear_initialized = false;
     struct nk_context* ctx = nullptr;
@@ -129,13 +127,12 @@ private:
 
     bool task_running = false;
 
-    // Popup dialog
-    bool show_popup = false;
-    std::string popup_title = "";
-    std::string popup_msg = "";
+    // Debug vars
+#ifdef _DEBUG
+    nk_bool skip_validation = false;
+#endif
 };
 
-// Helper function implementations
 void DrawSeparator(struct nk_context* ctx) {
     struct nk_color yellow = nk_rgb(198, 170, 132);
     float separator_width = 0.8f;
@@ -153,22 +150,7 @@ void DrawSeparator(struct nk_context* ctx) {
     nk_label(ctx, "", NK_TEXT_LEFT);
 }
 
-std::string ReadIniValue(std::string_view section, std::string_view key, const std::filesystem::path& iniFilePath) {
-    constexpr size_t bufferSize = 256;
-    char buffer[bufferSize]{};
-    std::span<char> bufferSpan(buffer);
 
-    GetPrivateProfileStringA(
-        section.data(),
-        key.data(),
-        "",
-        bufferSpan.data(),
-        static_cast<DWORD>(bufferSpan.size()),
-        iniFilePath.string().c_str()
-    );
-
-    return std::string(buffer);
-}
 
 EQOverlay::EQOverlay() {
     D3D9Hooks::SetRenderCallback([&](IDirect3DDevice9* device) {
@@ -177,7 +159,9 @@ EQOverlay::EQOverlay() {
     D3D9Hooks::SetResetCallback([&](IDirect3DDevice9* device) {
         this->OnReset(device);
     });
-    FetchServerData();
+    Login::SetLoginCallback([&](int server_id) {
+        return this->DoLogin(server_id);
+    });
 }
 
 void EQOverlay::Reset() {
@@ -190,8 +174,38 @@ int EQOverlay::GetGameState() {
     return eqlib::pEverQuest ? eqlib::pEverQuest->GameState : -1;
 }
 
+bool EQOverlay::DoLogin(int server_id) {
+
+    for (auto& server : servers) {
+        for (const auto& s : eqlib::g_pLoginClient->ServerList) {
+            if (s->ID != server_id) {
+                continue;
+            }
+            for (const auto& host : server.hosts) {
+                if (s->HostName.c_str() == host) {
+                    server.ValidateInstall();
+#ifdef _DEBUG
+                    if (!skip_validation && !server.up_to_date) {
+#else
+                    if (!server.up_to_date) {
+#endif
+                        Login::InterceptUnknown("<b>Failed to join custom server</b><br></br>Your patch files are out of date for " + server.longname + ".");
+                        Server::SetContext("");
+                        return true;
+                    }
+                    Server::SetContext(server.shortname);
+                    return false;
+                }
+            }     
+        }
+    }
+    Server::SetContext("");
+    return false;
+}
+
 void EQOverlay::InitializeBounds() {
     RECT clientRect;
+    FetchServerData();
     if (GetClientRect(GetActiveWindow(), &clientRect)) {
         int clientWidth = clientRect.right - clientRect.left;
         int clientHeight = clientRect.bottom - clientRect.top;
@@ -211,7 +225,7 @@ void EQOverlay::InitializeBounds() {
 
 void EQOverlay::FetchServerData() {
     status = "Fetching Server Metadata...";
-    const auto& url = ReadIniValue("ServerMetadata", "ManifestUrl", iniPath);
+    const auto& url = util::ReadIniValue("ServerMetadata", "ManifestUrl", iniPath);
     servers.clear();
     auto response = http::DownloadJson(url);
     rapidjson::Document document;
@@ -240,7 +254,9 @@ void EQOverlay::FetchServerData() {
                 const rapidjson::Value& hosts = server["hosts"];
                 for (const auto& host : hosts.GetArray()) {
                     if (host.IsString()) {
-                        info.hosts.push_back(host.GetString());
+                        auto hostStr = host.GetString();
+                      
+                        info.hosts.push_back(hostStr);
                     }
                 }
             }
@@ -259,7 +275,7 @@ void EQOverlay::DownloadServerFiles(ServerInfo& server) {
                 if (fs::create_directories(path)) {
                     std::cout << "Directory created: " << path << std::endl;
                 } else {
-                    ShowPopup("Filesystem Error", "Was unable to create directory: " + path);
+                    ShowPopup("Filesystem Error. Was unable to create directory: " + path);
                     task_running = false;
                     return;
                 }
@@ -269,13 +285,13 @@ void EQOverlay::DownloadServerFiles(ServerInfo& server) {
                 server.downloading = true;
             }
             if (http::DownloadBinary(server.url, zip_path, [this, &server](double pct) {
-         
+                server.pct_downloaded = pct;
             })) {
                 if (zipextractor::ExtractAllFilesFromZip(zip_path) && fs::remove(zip_path)) {
                     server.WriteHashAndVersion();
                 }
                 else {
-                    ShowPopup("Extract Error", "Error extracting zip from: " + zip_path);
+                    ShowPopup("Extract Error. Error extracting zip from: " + zip_path);
                 }
             }
             else {
@@ -294,7 +310,7 @@ void EQOverlay::DownloadServerFiles(ServerInfo& server) {
 }
 
 void EQOverlay::OnRender(IDirect3DDevice9* device) {
-    if (GetGameState() != -1) {
+    if (GetGameState() != -1 || !Login::DidRetrieveServers()) {
         return;
     }
     if (!nuklear_initialized) {
@@ -311,6 +327,7 @@ void EQOverlay::OnRender(IDirect3DDevice9* device) {
     nk_style_push_style_item(ctx, &s->window.fixed_background, nk_style_item_color(nk_rgb(bg.r, bg.g, bg.b)));
 
     struct nk_rect window_rect = nk_rect(window_x, window_y, window_width, window_height);
+    struct nk_rect window_rect_popup = nk_rect(window_x - window_width - 20, window_y, window_width, 150);
 
     nk_style_push_font(ctx, &header_font->handle);
     if (nk_begin(ctx, "EQ Nexus Server Patcher", window_rect,
@@ -340,8 +357,8 @@ void EQOverlay::OnRender(IDirect3DDevice9* device) {
             nk_label(ctx, server.shortname.c_str(), NK_TEXT_RIGHT);
 
             nk_layout_row_dynamic(ctx, 25, 2);
-            std::string status = server.downloading ? 
-                "Downloading..." : !server.error.empty() ?
+            std::string status = server.downloading ?
+                 std::to_string(server.pct_downloaded) + "%" : !server.error.empty() ?
                     server.error : server.up_to_date ?
                         "Up to date" : "Needs update";
             nk_label(ctx, ("Status: " + status).c_str(), NK_TEXT_LEFT);
@@ -349,6 +366,9 @@ void EQOverlay::OnRender(IDirect3DDevice9* device) {
                 if (nk_button_label(ctx, "Download")) {
                     DownloadServerFiles(server);
                 }
+            }
+            if (server.up_to_date && nk_button_label(ctx, "Open Files")) {
+                util::OpenExplorerInCustomDirectory(server.shortname);
             }
            
         }
@@ -365,6 +385,36 @@ void EQOverlay::OnRender(IDirect3DDevice9* device) {
     window_width = new_size.x;
     window_height = new_size.y;
     nk_end(ctx);
+
+#ifdef _DEBUG
+    struct nk_rect debug_wnd_rect = nk_rect(0.0f, 0.0f,200.0f, 300.0f);
+    if (nk_begin(ctx, "Debug", debug_wnd_rect,
+        NK_WINDOW_BORDER | NK_WINDOW_TITLE)) {
+        nk_layout_row_dynamic(ctx, 30, 1);
+   
+        nk_checkbox_label(ctx, "Skip validation", &skip_validation);
+        float ww = nk_window_get_content_region(ctx).w;
+        float button_width = 135.0f;
+        float x_pos = (ww - button_width) / 2;
+
+        nk_layout_space_begin(ctx, NK_STATIC, 40, 1);
+        nk_layout_space_push(ctx, nk_rect(x_pos, 0, button_width, 30));
+
+
+        nk_layout_space_end(ctx);
+        nk_layout_space_begin(ctx, NK_STATIC, 40, 1);
+        nk_layout_space_push(ctx, nk_rect(x_pos, 0, button_width, 30));
+
+        if (nk_button_label(ctx, "Test")) {
+            Login::OpenModal("Testing here");
+        }
+
+        nk_layout_space_end(ctx);
+
+    }
+    nk_end(ctx);
+
+#endif
     nk_d3d9_render(NK_ANTI_ALIASING_ON);
 }
 
@@ -402,10 +452,11 @@ void EQOverlay::InitNuklearCtx(IDirect3DDevice9* device) {
 }
 
 void EQOverlay::OnReset(IDirect3DDevice9* device) {
+    auto state = GetGameState();
     if (nuklear_initialized) {
         nk_d3d9_shutdown();
         nuklear_initialized = false;
-        if (GetGameState() > -1) {
+        if (state > -1) {
             return;
         }
     }
@@ -414,8 +465,7 @@ void EQOverlay::OnReset(IDirect3DDevice9* device) {
 
 void EQOverlay::PollDirectInputForNuklear() {
     if (keyboard) {
-        if (SUCCEEDED(keyboard->GetDeviceState(sizeof(keyboard_state), (LPVOID)&keyboard_state))) {
-        }
+
     }
 
     if (mouse) {

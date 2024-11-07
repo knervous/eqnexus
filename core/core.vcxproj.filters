@@ -19,6 +19,9 @@
     <Filter Include="Modules">
       <UniqueIdentifier>{c7b1a62f-1e0d-493b-bf48-1997069a0def}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Modules\hooks">
+      <UniqueIdentifier>{aedbe85c-9436-480d-b861-86432b76b3c9}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="framework.h">
@@ -85,6 +88,36 @@
     </ClCompile>
     <ClCompile Include="zip.ixx">
       <Filter>Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="utility.ixx">
+      <Filter>Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="hooks.ixx">
+      <Filter>Modules\hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="filesystem.ixx">
+      <Filter>Modules\hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="login.ixx">
+      <Filter>Modules\hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="config.ixx">
+      <Filter>Modules\hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="options.ixx">
+      <Filter>Modules\hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="server.ixx">
+      <Filter>Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="zone.ixx">
+      <Filter>Modules\hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="animation.ixx">
+      <Filter>Modules\hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="npc.ixx">
+      <Filter>Modules\hooks</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

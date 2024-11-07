@@ -126,6 +126,25 @@ export namespace eqlib {
 		return nullptr;
 	}
 
+	// allocate memory as if by using eq's malloc.
+	using eqAllocFn = void* (*)(std::size_t amount);
+	eqAllocFn eqAlloc_ = nullptr;
+
+	void* eqAlloc(std::size_t sz)
+	{
+		return eqAlloc_(sz);
+	}
+
+	// free memory as if by using eq's free.
+	using eqFreeFn = void (*)(void*);
+	eqFreeFn eqFree_ = nullptr;
+
+	void eqFree(void* ptr)
+	{
+		eqFree_(ptr);
+	}
+
+
 } // namespace eqlib
 
 // Operator overloads for eqlib::detail::EqAllocate tag

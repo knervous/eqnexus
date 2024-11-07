@@ -1,0 +1,41 @@
+{
+    "zones": {
+        "add": [
+            {
+                "shortName": "baylesforest",
+                "longName": "Bayle's Forest",
+                "zoneId" : 850
+            }
+        ],
+        "update": {
+            "qeynos2" : {
+                "shortName": "qeynos2",
+                "longName": "Qeynos City"
+            }
+        }
+    },
+    "animations": {
+
+    },
+    "npcs": [
+
+    ],
+    "options": {
+        "isGammaRestoreOnCrashEnabled": false,
+        "isMQInjectsEnabled": false,
+        "isMapWindowDisabled": true,
+        "areLuclinModelsDisabled": true,
+        "isBazaarWindowDisabled": false,
+        "isHeroicDisabled": true,
+        "isMaxHPFixEnabled": false,
+        "isPatchmeDisabled": false,
+        "isFoodDrinkSpamDisabled": false,
+        "isMQ2PreventionEnabled": false,
+        "isSpellDataCRCEnabled": false,
+        "isCombatDamageDoubleAppliedFixEnabled": false,
+        "isChecksumFixEnabled": false,
+        "isOldModelHorseSupportEnabled": false,
+        "isReportHardwareAddressEnabled": false,
+        "isAllowIllegalAugmentsEnabled": false
+    }
+}

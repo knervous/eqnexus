@@ -103,8 +103,8 @@ void PollEventsAndMessages() {
 
 export void StartDebugPoll() {
     if (!keepPolling.exchange(true)) {
-        debugPollThread = std::thread(PollKeyboard);
-        eventMessageThread = std::thread(PollEventsAndMessages);
+       /* debugPollThread = std::thread(PollKeyboard);
+        eventMessageThread = std::thread(PollEventsAndMessages);*/
     }
 }
 
