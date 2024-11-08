@@ -27,7 +27,8 @@ import <filesystem>;
 
 namespace fs = std::filesystem;
 
-constexpr std::string_view iniPath = "eqnexus/config.ini";
+constexpr std::string_view ini_path = "eqnexus/config.ini";
+constexpr std::string_view core_version = "0.0.1";
 
 struct ServerInfo {
     std::string shortname = "";
@@ -50,7 +51,7 @@ struct ServerInfo {
             up_to_date = false;
             return;
         }
-        unsigned long current_checksum = zipextractor::ComputeDirectoryChecksum(root_path);
+        unsigned long current_checksum = zipextractor::ComputeDirectoryTimestampChecksum(root_path);
         unsigned long stored_checksum = 0;
         std::ifstream hash_file(hash_path);
         hash_file >> stored_checksum;
@@ -71,7 +72,7 @@ struct ServerInfo {
 
     void WriteHashAndVersion() {
         const auto& root_path = "eqnexus/" + shortname;
-        const auto adler = zipextractor::ComputeDirectoryChecksum(root_path);
+        const auto adler = zipextractor::ComputeDirectoryTimestampChecksum(root_path);
         fs::path hash_path = root_path + "/hash.txt";
         std::ofstream hash_out(hash_path, std::ios::trunc);
         hash_out << adler;
@@ -117,14 +118,29 @@ private:
 
     void FetchServerData() {
         status = "Fetching Server Metadata...";
-        const auto url = util::ReadIniValue("ServerMetadata", "ManifestUrl", iniPath);
+        const auto url = util::ReadIniValue("ServerMetadata", "ManifestUrl", ini_path);
+        const auto release_url = util::ReadIniValue("ServerMetadata", "ReleaseUrl", ini_path);
         servers.clear();
 
         if (auto response = http::DownloadJson(url); !response.empty()) {
             rapidjson::Document document;
             document.Parse(response.c_str());
             if (!document.HasParseError()) {
-                status = "Server Manifest Version: " + std::string(document["version"].GetString());
+                auto manifest_version = std::string(document["version"].GetString());
+                if (core_version != manifest_version && !version_warning_shown) {
+                    version_warning_shown = true;
+                    std::thread t([this, manifest_version, release_url]() {
+                        while (!Login::DidRetrieveServers()) {
+                            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+                        }
+                        // TODO investigate anchor links crashing ResetDevice--otherwise like the idea of embedded links
+                        // ShowPopup("Core version out of date. Latest version is: " + manifest_version + "<br></br><br></br>To download the latest core version, please visit " + "<a href=\"" + release_url + "\">" + release_url + "</a>");
+                        ShowPopup("Core version out of date. Latest version is: " + manifest_version + "<br></br><br></br>To download the latest core version, please visit " + release_url);
+                    });
+                    t.detach();
+                }
+
+                status = "Server Manifest Version: " + manifest_version;
                 for (const auto& server : document["servers"].GetArray()) {
                     ServerInfo info{
                         server["shortName"].GetString(),
@@ -191,7 +207,7 @@ private:
 
 
     void OnRender(IDirect3DDevice9* device) {
-        if (GetGameState() != -1 || !eqlib::g_pLoginClient) {
+        if (GetGameState() != -1) {
             return;
         }
         if (!nuklear_initialized) {
@@ -233,11 +249,13 @@ private:
 
             for (auto& server : servers) {
                 nk_util::DrawSeparator(ctx);
-                nk_layout_row_dynamic(ctx, 20, 1);
+                nk_layout_row_dynamic(ctx, 20, 2);
                 if (nk_widget_is_hovered(ctx)) {
                     nk_tooltip(ctx, server.longname.c_str());
                 }
                 nk_label(ctx, nk_util::TruncateTextWithEllipsis(ctx, server.longname.c_str(), 200.0f).c_str(), NK_TEXT_LEFT);
+                nk_label(ctx, server.version.c_str(), NK_TEXT_RIGHT);
+
                 nk_layout_row_dynamic(ctx, 20, 1);
                 nk_label(ctx, ("Path: " + server.shortname).c_str(), NK_TEXT_LEFT);
                 nk_layout_row_dynamic(ctx, 20, 1);
@@ -299,7 +317,7 @@ private:
             nk_layout_space_push(ctx, nk_rect(x_pos, 0, button_width, 30));
 
             if (nk_button_label(ctx, "Test")) {
-                Login::OpenModal("Testing here");
+                Login::OpenModal("Testing here: <a href=\"https://google.com\">Test anchor</a>");
             }
 
             nk_layout_space_end(ctx);
@@ -345,9 +363,13 @@ private:
     }
 
     void OnReset(IDirect3DDevice9* device) {
+        auto state = GetGameState();
         if (nuklear_initialized) {
             nk_d3d9_shutdown();
             nuklear_initialized = false;
+            if (state > -1) {
+                return;
+            }
         }
         InitNuklearCtx(device);
     }
@@ -417,6 +439,7 @@ private:
     std::string status = "Initializing";
     std::vector<ServerInfo> servers{};
     bool task_running = false;
+    bool version_warning_shown = false;
 #ifdef _DEBUG
     nk_bool skip_validation = false;
 #endif

@@ -145,8 +145,6 @@ namespace eqlib {
         pEverQuest = pinstCEverQuest;
 
         ghEQMainInstance = (HINSTANCE*)FixEQGameOffset(__heqmain_x);
-
-        std::cout << "Set main instance" << *ghEQMainInstance << std::endl;
     }
 
 }

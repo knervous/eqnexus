@@ -7,6 +7,7 @@ import <iostream>;
 import <fstream>;
 import <filesystem>;
 import <functional>;
+import <chrono>;
 
 namespace fs = std::filesystem;
 
@@ -41,6 +42,39 @@ export namespace zipextractor {
 
         return adler;
     }
+
+    unsigned long ComputeFileLastModifiedTime(const fs::path& filePath) {
+        try {
+            auto ftime = fs::last_write_time(filePath);
+            auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(ftime - fs::file_time_type::clock::now() + std::chrono::system_clock::now());
+            return static_cast<unsigned long>(std::chrono::system_clock::to_time_t(sctp));
+        }
+        catch (const fs::filesystem_error& e) {
+            std::cerr << "Error retrieving last modified time for " << filePath << ": " << e.what() << std::endl;
+            return 0;
+        }
+    }
+
+    unsigned long ComputeDirectoryTimestampChecksum(const fs::path& directoryPath) {
+        unsigned long cumulativeChecksum = 0;
+
+        for (const auto& entry : fs::directory_iterator(directoryPath)) {
+            if (entry.is_regular_file()) {
+                const std::string fileName = entry.path().filename().string();
+
+                // Skip specific files if needed
+                if (fileName == "version.txt" || fileName == "hash.txt") {
+                    continue;
+                }
+
+                unsigned long fileChecksum = ComputeFileLastModifiedTime(entry.path());
+                cumulativeChecksum ^= fileChecksum;
+            }
+        }
+
+        return cumulativeChecksum;
+    }
+
 
     unsigned long ComputeDirectoryChecksum(const fs::path& directoryPath, unsigned long initialChecksum = 1) {
         unsigned long cumulativeChecksum = initialChecksum;

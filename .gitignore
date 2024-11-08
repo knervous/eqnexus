@@ -14,6 +14,7 @@ build/
 bin/
 out/
 Debug/
+Release/
 external/
 vcpkg_installed/
 

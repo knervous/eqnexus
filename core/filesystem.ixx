@@ -13,6 +13,7 @@ import <map>;
 import <iostream>;
 import <filesystem>;
 import <tuple>;
+import <set>;
 import <thread>;
 
 export class FileSystem {
@@ -34,7 +35,7 @@ public:
 	static graphics_load_file_t Original_Graphics_FileLoad;
 	static graphics_load_s3d_cache_t Original_Graphics_S3dLoadCache;
 	static uintptr_t GraphicsCache;
-
+	static inline std::vector<HMODULE> libs = {};
 
 	static void Init() {
 		Server::RegisterCallback("FileSystem", OnServerContextChanged);
@@ -164,6 +165,27 @@ public:
 				return;
 			}
 		}
+
+		auto dir = GetPrefix();
+		const std::set<std::string> allowed_dlls = {
+			"entry.dll",
+		};
+
+		for (const auto& entry : std::filesystem::recursive_directory_iterator(dir)) {
+			if (entry.path().extension() == ".dll") {
+				std::string dll_name = entry.path().filename().string();
+				if (allowed_dlls.find(dll_name) != allowed_dlls.end()) {
+					HMODULE hModule = LoadLibrary(entry.path().c_str());
+					if (hModule) {
+						libs.push_back(hModule);
+						std::cout << "Loaded DLL: " << dll_name << std::endl;
+					}
+					else {
+						std::cerr << "Failed to load DLL: " << dll_name << std::endl;
+					}
+				}
+			}
+		}
 	}
 
 	static void RemoveHooks() {
@@ -172,6 +194,15 @@ public:
 			MH_RemoveHook(reinterpret_cast<void*>(original));
 		}
 		hooks.clear();
+
+		// Unload all DLLs
+		for (HMODULE hModule : libs) {
+			if (hModule) {
+				FreeLibrary(hModule);
+				std::cout << "Unloaded DLL" << std::endl;
+			}
+		}
+		libs.clear();
 	}
 
 };
