@@ -373,6 +373,7 @@ private:
                     continue;
                 }
                 for (const auto& host : server.hosts) {
+                    auto server_host = std::string(s->HostName.c_str());
                     if (s->HostName.c_str() == host) {
                         server.ValidateInstall();
 #ifdef _DEBUG
