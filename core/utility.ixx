@@ -51,6 +51,12 @@ export namespace util {
         return result;
     }
 
+    std::string ToStringWithPrecision(double value, int precision = 2) {
+        std::ostringstream out;
+        out << std::fixed << std::setprecision(precision) << value;
+        return out.str();
+    }
+
     std::string GetCurrentWorkingDirectory() {
         char buffer[MAX_PATH];
         GetModuleFileNameA(NULL, buffer, MAX_PATH);

@@ -40,7 +40,7 @@ struct ServerInfo {
     bool downloading = false;
     std::string error = "";
     double pct_downloaded = 0.0;
-
+    std::string status = "";
     void ValidateInstall() {
         const auto& root_path = "eqnexus/" + shortname;
         fs::path hash_path = root_path + "/hash.txt";
@@ -145,7 +145,7 @@ private:
             }
         }
     }
-    // Non-inline helper function for download logic
+
     void DownloadServerFilesTask(ServerInfo& server) {
         if (server.url.empty()) {
             server.error = "No URL defined";
@@ -166,8 +166,8 @@ private:
         if (http::DownloadBinary(server.url, zip_path, [&server](double pct) { server.pct_downloaded = pct; })) {
             server.downloading = false;
 
-            if (zipextractor::ExtractAllFilesFromZip(zip_path, [this](const std::string& filename) {
-                status = "Extracting " + filename;
+            if (zipextractor::ExtractAllFilesFromZip(zip_path, [this, &server](const std::string& filename) {
+                server.status = "Extracting " + filename;
             }) && fs::remove(zip_path)) {
                 server.WriteHashAndVersion();
             }
@@ -178,7 +178,7 @@ private:
         else {
             server.error = "HTTP Failure";
         }
-
+        server.status = "";
         server.downloading = false;
         server.ValidateInstall();
         task_running = false;
@@ -247,9 +247,11 @@ private:
                 }
                 nk_label(ctx, ("URL: " + nk_util::TruncateTextWithEllipsis(ctx, url.c_str(), 200.0f)).c_str(), NK_TEXT_LEFT);
                
-                nk_layout_row_dynamic(ctx, 25, 2);
-                std::string status = server.downloading ?
-                    std::to_string(server.pct_downloaded) + "%" : !server.error.empty() ?
+                bool server_task_running = !server.status.empty() || server.downloading;
+                nk_layout_row_dynamic(ctx, 25, server_task_running ? 1 : 2);
+                std::string status = !server.status.empty() ? server.status : 
+                    server.downloading ?
+                    util::ToStringWithPrecision(server.pct_downloaded) + "% Downloaded" : !server.error.empty() ?
                     server.error : server.up_to_date ?
                     "Up to date" : "Needs update";
                 nk_label(ctx, ("Status: " + status).c_str(), NK_TEXT_LEFT);
