@@ -81,16 +81,15 @@ extern "C" __declspec(dllexport) bool Teardown() {
     if (!did_init) {
         return true;
     }
-    
-    eqoverlay->Reset();
-    eqoverlay = nullptr;
-    did_init = false;
     D3D9Hooks::Teardown();
+    eqoverlay.reset();
+    did_init = false;
     Hooks::Teardown();
     Login::Teardown();
-    Server::Teardown();
     FileSystem::Teardown();
     Config::Teardown();
+    Server::Teardown();
+
     if (MH_Uninitialize() != MH_OK) {
         std::cerr << "Failed to uninitialize MinHook." << std::endl;
         return false;

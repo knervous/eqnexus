@@ -52,7 +52,7 @@ export namespace http {
         return result;
     }
 
-    bool DownloadBinary(const std::string& url, const std::string& outputFilePath, std::function<void(double)> progress_callback) {
+    bool DownloadBinary(const std::string& url, const std::string& outputFilePath, std::function<void(double)> progress_callback = nullptr) {
         HINTERNET hInternet = InternetOpen(user_agent, INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
         if (!hInternet) return false;
 

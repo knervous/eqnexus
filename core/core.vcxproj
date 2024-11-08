@@ -184,6 +184,7 @@
     <ClCompile Include="http.ixx" />
     <ClCompile Include="login.ixx" />
     <ClCompile Include="login_frontend.ixx" />
+    <ClCompile Include="nk.ixx" />
     <ClCompile Include="npc.ixx" />
     <ClCompile Include="nuklear_impl.cpp" />
     <ClCompile Include="offset_utils.ixx" />

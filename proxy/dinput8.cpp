@@ -1,7 +1,8 @@
 
 import core;
+#ifdef _DEBUG
 import debug;
-
+#endif
 #include <Windows.h>
 #include <cstdio>
 #include <csignal>

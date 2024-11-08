@@ -6,6 +6,7 @@ import <vector>;
 import <iostream>;
 import <fstream>;
 import <filesystem>;
+import <functional>;
 
 namespace fs = std::filesystem;
 
@@ -61,7 +62,7 @@ export namespace zipextractor {
 
         return cumulativeChecksum;
     }
-    bool ExtractAllFilesFromZip(const std::string& zipPath) {
+    bool ExtractAllFilesFromZip(const std::string& zipPath, std::function<void(const std::string&)> fn) {
         unzFile zipfile = unzOpen(zipPath.c_str());
         if (!zipfile) {
             std::cerr << "Failed to open ZIP file: " << zipPath << std::endl;
@@ -90,7 +91,7 @@ export namespace zipextractor {
                 unzClose(zipfile);
                 return false;
             }
-
+            fn(filename);
             fs::path output_path = output_dir / filename;
             fs::create_directories(output_path.parent_path());
 
