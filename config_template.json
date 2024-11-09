@@ -21,21 +21,21 @@
 
     ],
     "options": {
-        "isGammaRestoreOnCrashEnabled": false,
-        "isMQInjectsEnabled": false,
-        "isMapWindowDisabled": true,
-        "areLuclinModelsDisabled": true,
-        "isBazaarWindowDisabled": false,
-        "isHeroicDisabled": true,
-        "isMaxHPFixEnabled": false,
-        "isPatchmeDisabled": false,
-        "isFoodDrinkSpamDisabled": false,
-        "isMQ2PreventionEnabled": false,
-        "isSpellDataCRCEnabled": false,
-        "isCombatDamageDoubleAppliedFixEnabled": false,
-        "isChecksumFixEnabled": false,
-        "isOldModelHorseSupportEnabled": false,
-        "isReportHardwareAddressEnabled": false,
-        "isAllowIllegalAugmentsEnabled": false
+        "restoreGammaOnCrash": false,
+        "disableMapWindow": false,
+        "disableLuclinModels": true,
+        "disabledBazaarWindow": false,
+        "disableHeroic": true,
+        "disablePatchMe": false,
+        "disableFoodDrinkSpam": false,
+        "enableMaxHPFix": false,
+        "enableMQInjects": false,
+        "enableMQ2Prevention": false,
+        "enableSpellDataCRC": false,
+        "enableCombatDamageDoubleAppliedFix": false,
+        "enableChecksumFix": false,
+        "enableOldModelHorseSupport": false,
+        "enableReportHardwareAddress": false,
+        "enableAllowIllegalAugments": false
     }
 }

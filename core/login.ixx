@@ -16,7 +16,7 @@ import <functional>;
 
 using login_callback_t = std::function<bool(int)>;
 using do_login_t = int(__fastcall*)(uintptr_t This, uintptr_t Reg, int server_id, uintptr_t user_data, int timeout);
-using show_msg_t = void(__fastcall*)(uintptr_t This, uintptr_t Reg, void* a2, int a3, int* a4, void* a5, void* a6);
+using show_msg_t = void(__fastcall*)(uintptr_t This, uintptr_t Reg, void* a2, int a3, volatile signed int* a4, void* a5, void* a6);
 using process_packet_t = void(__fastcall*)(uintptr_t This, uintptr_t Reg, unsigned char* data, uintptr_t a2);
 using get_tablestring_t = const char* (__fastcall*)(uintptr_t This, uintptr_t Reg, int entry, void* data);
 using load_eqmain = int(__cdecl*)();
@@ -41,8 +41,14 @@ public:
 
     static void OpenModal(const std::string& msg) {
         if (!DialogInstance) return;
-        int val = 1;
-        Original_Msg(DialogInstance, NULL, NULL, GetOrCreateString(msg), &val, nullptr, nullptr);
+        int buffer = -1;
+        // This is the original "Open this SIDL dialog"
+        ((show_msg_t)(eqlib::EQMainBaseAddress + 0xBBE0))(DialogInstance, NULL, NULL, GetOrCreateString(msg), &buffer, nullptr, nullptr);
+        // This prevents a check that results in ResetDevice crash, wtf this works.
+        uintptr_t MgrInstance = *reinterpret_cast<uintptr_t*>(eqlib::EQMainBaseAddress + 0x150170);
+        if (MgrInstance) {
+            *((BYTE*)MgrInstance + 96) = 0;
+        }
     }
 
     static void SetupHooks() {
@@ -52,7 +58,6 @@ public:
         }
         Hooks = {
             {reinterpret_cast<LPVOID>(eqlib::EQMainBaseAddress + 0x13C30), &Login::DoLogin, reinterpret_cast<LPVOID*>(&Original_DoLogin)},
-            {reinterpret_cast<LPVOID>(eqlib::EQMainBaseAddress + 0xBBE0), &Login::ShowMsg, reinterpret_cast<LPVOID*>(&Original_Msg)},
             {reinterpret_cast<LPVOID>(eqlib::EQMainBaseAddress + 0x148F0), &Login::ProcessPacket, reinterpret_cast<LPVOID*>(&Original_ProcessPacket)},
             {reinterpret_cast<LPVOID>(eqlib::EQMainBaseAddress + 0x26420), &Login::GetTableString, reinterpret_cast<LPVOID*>(&Original_GetTableString)},
         };
@@ -62,6 +67,7 @@ public:
                 std::cout << "Failed enabling hook in login" << std::endl;
             }
         }
+        std::cout << "Set up hooks in Login";
     }
 
     static void CleanupHooks() {
@@ -70,6 +76,7 @@ public:
             MH_RemoveHook(target);
         }
         Hooks.clear();
+        DialogInstance = 0;
     }
 
     static void Init() {
@@ -94,7 +101,6 @@ public:
 
 
 private:
-    inline static show_msg_t Original_Msg = nullptr;
     inline static do_login_t Original_DoLogin = nullptr;
     inline static process_packet_t Original_ProcessPacket = nullptr;
     inline static get_tablestring_t Original_GetTableString = nullptr;
@@ -115,14 +121,17 @@ private:
                 return value.c_str();
             }
         }
-        return Original_GetTableString(This, Reg, entry, data);;
+        return Original_GetTableString(This, Reg, entry, data);
     }
 
 
     static void __fastcall ProcessPacket(uintptr_t This, uintptr_t Reg, unsigned char* data, uintptr_t a2) {
         // This offset is the instance of some class related to SIDL manager that's stored within the loginServerAPI (This)
         // and we need to dereference it to find out where it is.
-        DialogInstance = *((unsigned long*)This + 123);
+        if (!DialogInstance) {
+            DialogInstance = *((unsigned long*)This + 123);
+        }
+        std::cout << "Process packet" << std::endl;
         auto opcode = *((unsigned short*)data + 2);
         switch (opcode) {
         case 0x18: // Server list
@@ -140,10 +149,6 @@ private:
             break;
         }
         Original_ProcessPacket(This, Reg, data, a2);
-    }
-
-    static void __fastcall ShowMsg(uintptr_t This, uintptr_t Reg, void* a2, int a3, int* a4, void* a5, void* a6) {
-        Original_Msg(This, Reg, a2, a3, a4, a5, a6);
     }
 
     static uintptr_t __fastcall DoLogin(uintptr_t This, uintptr_t Reg, int server_id, uintptr_t user_data, int timeout) {

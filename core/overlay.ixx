@@ -28,7 +28,7 @@ import <filesystem>;
 namespace fs = std::filesystem;
 
 constexpr std::string_view ini_path = "eqnexus/config.ini";
-constexpr std::string_view core_version = "0.0.1";
+constexpr std::string_view core_version = "0.0.2";
 
 struct ServerInfo {
     std::string shortname = "";
@@ -133,9 +133,7 @@ private:
                         while (!Login::DidRetrieveServers()) {
                             std::this_thread::sleep_for(std::chrono::milliseconds(500));
                         }
-                        // TODO investigate anchor links crashing ResetDevice--otherwise like the idea of embedded links
-                        // ShowPopup("Core version out of date. Latest version is: " + manifest_version + "<br></br><br></br>To download the latest core version, please visit " + "<a href=\"" + release_url + "\">" + release_url + "</a>");
-                        ShowPopup("Core version out of date. Latest version is: " + manifest_version + "<br></br><br></br>To download the latest core version, please visit " + release_url);
+                         ShowPopup("EQ Nexus Core version out of date. Latest version is: " + manifest_version + "<br></br><br></br>To download the latest core version, please visit " + "<a href=\"" + release_url + "\">" + release_url + "</a>");
                     });
                     t.detach();
                 }

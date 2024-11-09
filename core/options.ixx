@@ -88,6 +88,7 @@ public:
             if (isEnabled.IsBool() && isEnabled.GetBool() && name.IsString()) {
                 auto handler = optionHandlers.find(name.GetString());
                 if (handler != optionHandlers.end()) {
+                    std::cout << "Enabling option: " << name.GetString() << std::endl;
                     handler->second();
                 } else {
                     std::cout << "Unknown option: " << name.GetString() << std::endl;
