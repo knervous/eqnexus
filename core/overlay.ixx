@@ -28,7 +28,7 @@ import <filesystem>;
 namespace fs = std::filesystem;
 
 constexpr std::string_view ini_path = "eqnexus/config.ini";
-constexpr std::string_view core_version = "0.0.2";
+constexpr std::string_view core_version = "0.0.3";
 
 struct ServerInfo {
     std::string shortname = "";
