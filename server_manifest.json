@@ -3,7 +3,7 @@
     "servers": [
         {
             "name": "Requiem",
-            "manifest": "https://eqrequiem.blob.core.windows.net/assets/manifest_requeiem.json"
+            "manifest": "https://eqrequiem.blob.core.windows.net/assets/manifest_requiem.json"
         },
         {
             "name": "The Heroes' Journey",
