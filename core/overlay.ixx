@@ -28,7 +28,7 @@ import <filesystem>;
 namespace fs = std::filesystem;
 
 constexpr std::string_view ini_path = "eqnexus/config.ini";
-constexpr std::string_view core_version = "0.0.3";
+constexpr std::string_view core_version = "1.0.0";
 
 struct ServerInfo {
     std::string shortname = "";
@@ -143,22 +143,22 @@ private:
                 status = "Server Manifest Version: " + manifest_version;
                 for (const auto& server : document["servers"].GetArray()) {
                     if (server.HasMember("manifest") && server["manifest"].IsString()) {
-                        if (auto response = http::DownloadJson(server["manifest"].GetString()); !response.empty()) {
-                            rapidjson::Document document;
-                            document.Parse(response.c_str());
-                            if (document.HasParseError()) {
+                        if (auto serverResponse = http::DownloadJson(server["manifest"].GetString()); !serverResponse.empty()) {
+                            rapidjson::Document serverDocument;
+                            serverDocument.Parse(serverResponse.c_str());
+                            if (serverDocument.HasParseError()) {
                                 continue;
                             }
                             ServerInfo info{
-                                server["shortName"].GetString(),
-                                server["longName"].GetString(),
-                                server["customFilesUrl"].GetString(),
-                                server["version"].GetString(),
-                                server["website"].IsString() ? server["website"].GetString() : "None",
-                                server["description"].IsString() ? server["description"].GetString() : "None",
+                                serverDocument["shortName"].GetString(),
+                                serverDocument["longName"].GetString(),
+                                serverDocument["customFilesUrl"].GetString(),
+                                serverDocument["version"].GetString(),
+                                serverDocument["website"].IsString() ? serverDocument["website"].GetString() : "None",
+                                serverDocument["description"].IsString() ? serverDocument["description"].GetString() : "None",
                             };
 
-                            for (const auto& host : server["hosts"].GetArray()) {
+                            for (const auto& host : serverDocument["hosts"].GetArray()) {
                                 if (host.IsString()) info.hosts.push_back(host.GetString());
                             }
                             info.ValidateInstall();
@@ -222,7 +222,7 @@ private:
 
 
     void OnRender(IDirect3DDevice9* device) {
-        if (GetGameState() != -1) {
+        if (GetGameState() != -1 || !Login::DidRetrieveServers()) {
             return;
         }
         if (!nuklear_initialized) {
@@ -279,15 +279,6 @@ private:
                     )", server.longname, server.version, server.website, server.website, server.description));
                 }
 
-       /*         nk_layout_row_dynamic(ctx, 20, 1);
-                nk_label(ctx, ("Path: " + server.shortname).c_str(), NK_TEXT_LEFT);
-                nk_layout_row_dynamic(ctx, 20, 1);
-                const auto& url = (server.url.empty() ? std::string("None") : server.url);
-                if (nk_widget_is_hovered(ctx)) {
-                    nk_tooltip(ctx, url.c_str());
-                }
-                nk_label(ctx, ("URL: " + nk_util::TruncateTextWithEllipsis(ctx, url.c_str(), 200.0f)).c_str(), NK_TEXT_LEFT);*/
-               
                 bool server_task_running = !server.status.empty() || server.downloading;
                 nk_layout_row_dynamic(ctx, 25, server_task_running ? 1 : 2);
                 std::string status = !server.status.empty() ? server.status : 

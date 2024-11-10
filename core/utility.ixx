@@ -11,7 +11,6 @@ import <format>;
 
 export namespace util {
 
-    // Helper function to replace placeholders `{}` in format string with arguments
     template <typename T>
     void format_argument(std::ostringstream& oss, const T& arg) {
         oss << arg;
@@ -22,7 +21,6 @@ export namespace util {
         std::ostringstream oss;
         std::size_t pos = 0, placeholderIdx = 0;
 
-        // Array of arguments expanded as strings
         std::initializer_list<int>{((void)(
             pos = formatString.find("{}", pos),
             oss << formatString.substr(placeholderIdx, pos - placeholderIdx),
@@ -31,11 +29,16 @@ export namespace util {
             placeholderIdx = pos
             ), 0)...};
 
-        // Append any remaining part of the format string after the last placeholder
         oss << formatString.substr(placeholderIdx);
         return oss.str();
     }
-
+    void ReplaceAll(std::string& str, const std::string& from, const std::string& to) {
+        size_t startPos = 0;
+        while ((startPos = str.find(from, startPos)) != std::string::npos) {
+            str.replace(startPos, from.length(), to);
+            startPos += to.length(); // Move past the last replaced position
+        }
+    }
     std::wstring ConvertToWide(const std::string& str) {
         if (str.empty()) {
             return std::wstring();

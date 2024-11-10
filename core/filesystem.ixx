@@ -3,6 +3,7 @@ export module filesystem;
 import hooks;
 import globals;
 import server;
+import utility;
 
 import <Windows.h>;
 import <MinHook.h>;
@@ -99,6 +100,16 @@ public:
 
 		static uintptr_t __fastcall Graphics_EQGLoad(uintptr_t This, uintptr_t Reg, const char* src, int flag, uintptr_t ptr, const char** strlist) {
 			std::cout << "Loading eqg source: " << src << " with flags" << std::endl;
+			if (!Server::GetContext().empty()) {
+				std::string eqg_source(src);
+				util::ReplaceAll(eqg_source, "EQG", "s3d");
+				auto custom_path = GetPrefix() + eqg_source;
+
+				if (std::filesystem::exists(custom_path)) {
+					std::cout << "Open eqg source custom: " << custom_path << std::endl;
+					return Original_Graphics_EqgLoad(This, Reg, custom_path.c_str(), flag, ptr, strlist);
+				}
+			}
 			return Original_Graphics_EqgLoad(This, Reg, src, flag, ptr, strlist);
 		}
 
