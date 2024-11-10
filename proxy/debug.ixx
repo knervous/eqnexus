@@ -40,6 +40,7 @@ void PollKeyboard() {
             std::cout << "Reloading module..." << std::endl;
             ctrlRTriggered = true;
             LoadCore();
+            LoadDevices();
         }
         if (ctrlPressed && ePressed && !ctrlETriggered && core_loaded) {
             std::cout << "Unloading module..." << std::endl;
@@ -81,6 +82,7 @@ void PollEventsAndMessages() {
         else if (waitResult == WAIT_OBJECT_0 + 1) {
             std::cout << "Reload event triggered. Reloading module..." << std::endl;
             LoadCore();
+            LoadDevices();
             ResetEvent(hReloadEvent);
         }
 

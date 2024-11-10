@@ -1,6 +1,6 @@
 
 import core;
-#ifdef _DEBUG
+#ifdef DEV
 import debug;
 #endif
 #include <Windows.h>
@@ -117,7 +117,7 @@ HRESULT WINAPI HookedCreateInputDevice(IDirectInput8A* pDirectInput, REFGUID rgu
         }
     }
     if (GetKeyboardDevice() && GetMouseDevice()) {
-#ifdef _DEBUG
+#ifdef DEV
         StartDebugPoll();
         std::signal(SIGINT, SignalHandler);
         std::atexit(StopDebugPoll);

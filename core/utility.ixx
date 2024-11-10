@@ -2,13 +2,40 @@ export module utility;
 
 import <windows.h>;
 import <iostream>;
+import <sstream>;
 import <string>;
 import <span>;
 import <filesystem>;
 import <random>;
-
+import <format>;
 
 export namespace util {
+
+    // Helper function to replace placeholders `{}` in format string with arguments
+    template <typename T>
+    void format_argument(std::ostringstream& oss, const T& arg) {
+        oss << arg;
+    }
+
+    template <typename... Args>
+    std::string Interpolate(const std::string& formatString, Args&&... args) {
+        std::ostringstream oss;
+        std::size_t pos = 0, placeholderIdx = 0;
+
+        // Array of arguments expanded as strings
+        std::initializer_list<int>{((void)(
+            pos = formatString.find("{}", pos),
+            oss << formatString.substr(placeholderIdx, pos - placeholderIdx),
+            oss << args,
+            pos += 2,  // Move past "{}"
+            placeholderIdx = pos
+            ), 0)...};
+
+        // Append any remaining part of the format string after the last placeholder
+        oss << formatString.substr(placeholderIdx);
+        return oss.str();
+    }
+
     std::wstring ConvertToWide(const std::string& str) {
         if (str.empty()) {
             return std::wstring();

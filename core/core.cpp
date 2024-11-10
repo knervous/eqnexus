@@ -31,8 +31,8 @@ void WaitForDebugger() {
     std::cout << "Debugger attached." << std::endl;
 }
 
-IDirectInputDevice8A* keyboard;
-IDirectInputDevice8A* mouse;
+IDirectInputDevice8A* keyboard = nullptr;
+IDirectInputDevice8A* mouse = nullptr;
 bool SetupCore() {
     if (MH_Initialize() != MH_OK) {
         std::cerr << "Failed to initialize MinHook." << std::endl;
@@ -46,8 +46,10 @@ bool SetupCore() {
         FileSystem::Init();
         Config::Init();
         eqoverlay = std::make_unique<EQOverlay>();
-        eqoverlay->SetKeyboard(keyboard);
-        eqoverlay->SetMouse(mouse);
+        if (mouse && keyboard) {
+            eqoverlay->SetKeyboard(keyboard);
+            eqoverlay->SetMouse(mouse);
+        }
     });
    
     return true;
@@ -59,15 +61,19 @@ extern "C" __declspec(dllexport) bool SetDevices(IDirectInputDevice8A* k, IDirec
     keyboard = k;
     mouse = m;
     if (eqoverlay) {
+        std::cout << "Settings devices for keyboard and mouse" << std::endl;
         eqoverlay->SetKeyboard(k);
         eqoverlay->SetMouse(m);
+    }
+    else {
+        std::cout << "Overlay not initialized in SetDevices" << std::endl;
     }
     return true;
 }
 
 extern "C" __declspec(dllexport) bool Initialize() {
     if (!did_init) {
-#ifdef _DEBUG
+#ifdef DEV
         AttachConsoleToDLL();
 #endif
         SetupCore();
@@ -84,11 +90,12 @@ extern "C" __declspec(dllexport) bool Teardown() {
     D3D9Hooks::Teardown();
     eqoverlay.reset();
     did_init = false;
+    Server::Teardown();
     Hooks::Teardown();
     Login::Teardown();
     FileSystem::Teardown();
     Config::Teardown();
-    Server::Teardown();
+   
 
     if (MH_Uninitialize() != MH_OK) {
         std::cerr << "Failed to uninitialize MinHook." << std::endl;

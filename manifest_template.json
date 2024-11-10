@@ -1,0 +1,9 @@
+{
+    "shortName": "eqrequiem",
+    "hosts": ["192.168.2.95", "eqrequiem.ddns.net"],
+    "longName": "Requiem",
+    "customFilesUrl": "https://eqrequiem.blob.core.windows.net/assets/requiem.zip",
+    "version": "1.0",
+    "website": "https://www.eqrequiem.com",
+    "description": "Requiem is a Classic+ Server focused on the core elements of early EQ while blending mechanics from other games like Diablo II."
+}

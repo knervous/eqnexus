@@ -2,18 +2,12 @@
     "version": "0.0.3",
     "servers": [
         {
-            "shortName": "eqrequiem",
-            "hosts": ["192.168.2.95", "eqrequiem.ddns.net"],
-            "longName": "Requiem",
-            "customFilesUrl": "https://eqrequiem.blob.core.windows.net/assets/requiem.zip",
-            "version": "1.0"
+            "name": "Requiem",
+            "manifest": "https://eqrequiem.blob.core.windows.net/assets/manifest_requeiem.json"
         },
         {
-            "shortName": "theheroesjourney",
-            "hosts": ["66.70.227.48"],
-            "longName": "The Heroes' Journey",
-            "customFilesUrl": "https://eqrequiem.blob.core.windows.net/assets/thj.zip",
-            "version": "0.1"
+            "name": "Requiem",
+            "manifest": "https://eqrequiem.blob.core.windows.net/assets/manifest_thj.json"
         }
     ]
 }

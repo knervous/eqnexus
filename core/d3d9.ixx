@@ -102,7 +102,6 @@ private:
         if (original) {
             MH_DisableHook(reinterpret_cast<void*>(original));
             MH_RemoveHook(reinterpret_cast<void*>(original));
-            original = nullptr;
         }
     }
 

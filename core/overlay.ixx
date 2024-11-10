@@ -35,6 +35,8 @@ struct ServerInfo {
     std::string longname = "";
     std::string url = "";
     std::string version = "";
+    std::string website = "";
+    std::string description = "";
     std::vector<std::string> hosts = {};
     int id = -1;
     bool up_to_date = false;
@@ -140,18 +142,33 @@ private:
 
                 status = "Server Manifest Version: " + manifest_version;
                 for (const auto& server : document["servers"].GetArray()) {
-                    ServerInfo info{
-                        server["shortName"].GetString(),
-                        server["longName"].GetString(),
-                        server["customFilesUrl"].GetString(),
-                        server["version"].GetString()
-                    };
+                    if (server.HasMember("manifest") && server["manifest"].IsString()) {
+                        if (auto response = http::DownloadJson(server["manifest"].GetString()); !response.empty()) {
+                            rapidjson::Document document;
+                            document.Parse(response.c_str());
+                            if (document.HasParseError()) {
+                                continue;
+                            }
+                            ServerInfo info{
+                                server["shortName"].GetString(),
+                                server["longName"].GetString(),
+                                server["customFilesUrl"].GetString(),
+                                server["version"].GetString(),
+                                server["website"].IsString() ? server["website"].GetString() : "None",
+                                server["description"].IsString() ? server["description"].GetString() : "None",
+                            };
 
-                    for (const auto& host : server["hosts"].GetArray()) {
-                        if (host.IsString()) info.hosts.push_back(host.GetString());
+                            for (const auto& host : server["hosts"].GetArray()) {
+                                if (host.IsString()) info.hosts.push_back(host.GetString());
+                            }
+                            info.ValidateInstall();
+                            servers.push_back(info);
+                        }
                     }
-                    info.ValidateInstall();
-                    servers.push_back(info);
+                    else {
+                        continue;
+                    }
+                    
                 }
             }
             else {
@@ -225,7 +242,7 @@ private:
         struct nk_rect window_rect_popup = nk_rect(window_x - window_width - 20, window_y, window_width, 150);
 
         nk_style_push_font(ctx, &header_font->handle);
-        if (nk_begin(ctx, "EQ Nexus Server Patcher", window_rect,
+        if (nk_begin(ctx, "EQ Nexus Server Patcher 1", window_rect,
             NK_WINDOW_BORDER | NK_WINDOW_MOVABLE | NK_WINDOW_SCALABLE |
             NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE)) {
             nk_style_pop_font(ctx);
@@ -252,16 +269,24 @@ private:
                     nk_tooltip(ctx, server.longname.c_str());
                 }
                 nk_label(ctx, nk_util::TruncateTextWithEllipsis(ctx, server.longname.c_str(), 200.0f).c_str(), NK_TEXT_LEFT);
-                nk_label(ctx, server.version.c_str(), NK_TEXT_RIGHT);
+                if (nk_button_label(ctx, "Server Info")) {
+  
+                    ShowPopup(util::Interpolate(R"(
+                        Server: {}<br></br>
+                        Version: {}<br></br>
+                        Website: <a href="{}">{}</a><br></br>
+                        Description: {}
+                    )", server.longname, server.version, server.website, server.website, server.description));
+                }
 
-                nk_layout_row_dynamic(ctx, 20, 1);
+       /*         nk_layout_row_dynamic(ctx, 20, 1);
                 nk_label(ctx, ("Path: " + server.shortname).c_str(), NK_TEXT_LEFT);
                 nk_layout_row_dynamic(ctx, 20, 1);
                 const auto& url = (server.url.empty() ? std::string("None") : server.url);
                 if (nk_widget_is_hovered(ctx)) {
                     nk_tooltip(ctx, url.c_str());
                 }
-                nk_label(ctx, ("URL: " + nk_util::TruncateTextWithEllipsis(ctx, url.c_str(), 200.0f)).c_str(), NK_TEXT_LEFT);
+                nk_label(ctx, ("URL: " + nk_util::TruncateTextWithEllipsis(ctx, url.c_str(), 200.0f)).c_str(), NK_TEXT_LEFT);*/
                
                 bool server_task_running = !server.status.empty() || server.downloading;
                 nk_layout_row_dynamic(ctx, 25, server_task_running ? 1 : 2);
@@ -295,7 +320,7 @@ private:
         window_height = new_size.y;
         nk_end(ctx);
 
-#ifdef _DEBUG
+#ifdef DEV
         struct nk_rect debug_wnd_rect = nk_rect(0.0f, 0.0f, 200.0f, 300.0f);
         if (nk_begin(ctx, "Debug", debug_wnd_rect,
             NK_WINDOW_BORDER | NK_WINDOW_TITLE)) {
@@ -396,7 +421,7 @@ private:
                     auto server_host = std::string(s->HostName.c_str());
                     if (s->HostName.c_str() == host) {
                         server.ValidateInstall();
-#ifdef _DEBUG
+#ifdef DEV
                         if (!skip_validation && !server.up_to_date) {
 #else
                         if (!server.up_to_date) {
@@ -438,7 +463,7 @@ private:
     std::vector<ServerInfo> servers{};
     bool task_running = false;
     bool version_warning_shown = false;
-#ifdef _DEBUG
+#ifdef DEV
     nk_bool skip_validation = false;
 #endif
 };

@@ -19,6 +19,25 @@ export IDirectInputDevice8A* GetKeyboardDevice() { return pKeyboardDevice; };
 export void SetMouseDevice(IDirectInputDevice8A* device) { pMouseDevice = device;  };
 export IDirectInputDevice8A* GetMouseDevice() { return pMouseDevice; };
 
+
+export void LoadDevices() {
+    auto lib = GetModuleHandle(L"eqnexus/core.dll");
+    if (lib) {
+        CoreSetDevices_t SetDevices = (CoreSetDevices_t)GetProcAddress(lib, "SetDevices");
+        bool success = SetDevices(pKeyboardDevice, pMouseDevice);
+        if (success) {
+            std::cout << "Set Devices success" << std::endl;
+        }
+        else {
+            std::cout << "Set Devices failed." << std::endl;
+        }
+    }
+    else {
+        //MessageBox(NULL, L"Nexus Core not found in eqnexus/core.dll", L"Missing files", MB_OK);
+        std::cout << "core.dll not found for LoadDevices";
+    }
+}
+
 export void LoadCore() {
     auto lib = LoadLibrary(L"eqnexus/core.dll");
     if (lib) {
@@ -37,19 +56,7 @@ export void LoadCore() {
     }
 }
 
-export void LoadDevices() {
-    auto lib = GetModuleHandle(L"eqnexus/core.dll");
-    if (lib) {
-        CoreSetDevices_t SetDevices = (CoreSetDevices_t)GetProcAddress(lib, "SetDevices");
-        bool success = SetDevices(pKeyboardDevice, pMouseDevice);
-        if (success) {
-            std::cout << "Set Devices success" << std::endl;
-        }
-        else {
-            std::cout << "Set Devices failed." << std::endl;
-        }
-    }
-}
+
 
 export void UnloadCore() {
     auto lib = GetModuleHandle(L"eqnexus/core.dll");
