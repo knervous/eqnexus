@@ -8,6 +8,10 @@
         {
             "name": "The Heroes' Journey",
             "manifest": "https://eqrequiem.blob.core.windows.net/assets/manifest_thj.json"
+        },
+        {
+            "name": "Wayfarers Haven",
+            "manifest": "https://eqrequiem.blob.core.windows.net/assets/manifest_wfh.json"
         }
     ]
 }

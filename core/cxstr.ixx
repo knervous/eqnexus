@@ -10,10 +10,11 @@ import <string_view>;
 import <type_traits>;
 import <stdexcept>;
 
-
 // initialize/shutdown the eqlib::CXStr components
-void InitializeCXStr();
-void ShutdownCXStr();
+void
+InitializeCXStr();
+void
+ShutdownCXStr();
 
 // This enum represents the encodings supported by CXStr. Strings can internally
 // be represented as either an array of wchar_t or char, corresponding with
@@ -22,24 +23,24 @@ void ShutdownCXStr();
 // is already encoded with that encoding.
 enum EStringEncoding
 {
-	StringEncodingUtf8,
-	StringEncodingUtf16,
+    StringEncodingUtf8,
+    StringEncodingUtf16,
 };
 
 // Method of performing a string comparison
 enum ECompareMode
 {
-	CaseSensitive,
-	CaseInsensitive,
+    CaseSensitive,
+    CaseInsensitive,
 };
 
 struct CStrRep;
 
 class CXFreeList
 {
-public:
-	uint32_t blockSize;
-	CStrRep* repList;
+   public:
+    uint32_t blockSize;
+    CStrRep* repList;
 };
 
 using Unicode16 = wchar_t;
@@ -50,29 +51,29 @@ class CXFreeList;
 // allocated string itself. CXStr is a value-type wrapper that holds a
 // reference to this. In then handle-body idiom, this is the body.
 // See: http://www.cs.sjsu.edu/faculty/pearce/patterns/hanbod/hanbod.html
-struct  CStrRep
-{
-	// this isn't a std::atomic in eq, but it should have the
-	// same layout in memory and thus we should be able to
-	// get the same behavior from it without additional work.
-	/*0x00*/ std::atomic<int> refCount;
-	/*0x04*/ uint32_t alloc;
-	/*0x08*/ uint32_t length;
-	/*0x0c*/ EStringEncoding encoding;
-	/*0x10*/ CXFreeList* freeList;
-	// The actual string data. Size does not matter, the length
-	// is dynamic and manually allocated.
-	union
-	{
-		/*0x14*/ char utf8[4];
-		/*0x14*/ Unicode16 unicode[2];
-		/*0x14*/ CStrRep* next;
-	};
-	/*0x18*/
+struct CStrRep {
+    // this isn't a std::atomic in eq, but it should have the
+    // same layout in memory and thus we should be able to
+    // get the same behavior from it without additional work.
+    /*0x00*/ std::atomic<int> refCount;
+    /*0x04*/ uint32_t alloc;
+    /*0x08*/ uint32_t length;
+    /*0x0c*/ EStringEncoding encoding;
+    /*0x10*/ CXFreeList* freeList;
+    // The actual string data. Size does not matter, the length
+    // is dynamic and manually allocated.
+    union {
+        /*0x14*/ char utf8[4];
+        /*0x14*/ Unicode16 unicode[2];
+        /*0x14*/ CStrRep* next;
+    };
+    /*0x18*/
 };
 
-namespace internal {
-		CXFreeList* GetCXFreeList();
+namespace internal
+{
+CXFreeList*
+GetCXFreeList();
 }
 
 // Simple iterator traits checks
@@ -86,7 +87,8 @@ template <typename T>
 inline constexpr bool is_iterator_v<T, std::void_t<iter_cat_t<T>>> = true;
 
 template <typename T>
-struct is_iterator : std::bool_constant<is_iterator_v<T>> {};
+struct is_iterator : std::bool_constant<is_iterator_v<T>> {
+};
 
 // In the handle-body idiom, this is the handle. It is a value
 // semantics type that holds the reference-counted CStrRep pointer.
@@ -94,1561 +96,1617 @@ struct is_iterator : std::bool_constant<is_iterator_v<T>> {};
 
 // We implement lots of bonus methods on this that are not part of the EQ
 // implementation, to give the string more of a std::string interface.
-export class  CXStr
+export class CXStr
 {
-public:
-	// Types to give CXStr the qualities of a std::string
-	using traits_type = std::char_traits<char>;
-	using value_type = char;
-	using allocator_type = eqlib::everquest_allocator<char>;
-	using size_type = size_t;
-	using difference_type = std::allocator_traits<allocator_type>::difference_type;
-	using reference = value_type&;
-	using const_reference = const value_type&;
-	using pointer = std::allocator_traits<allocator_type>::pointer;
-	using const_pointer = std::allocator_traits<allocator_type>::const_pointer;
-
-	// iterator for immutable string.
-	class ConstIterator
-	{
-	public:
-		using iterator_category = std::random_access_iterator_tag;
-
-		using value_type = typename CXStr::value_type;
-		using difference_type = typename CXStr::difference_type;
-		using pointer = typename CXStr::const_pointer;
-		using reference = const value_type&;
-
-		ConstIterator() = default;
-		ConstIterator(pointer ptr) : m_ptr(ptr) {}
-
-		[[nodiscard]] reference operator*() const
-		{
-			return *m_ptr;
-		}
-
-		[[nodiscard]] pointer operator->() const
-		{
-			return std::pointer_traits<pointer>::pointer_to(**this);
-		}
-
-		ConstIterator& operator++()
-		{
-			++m_ptr;
-			return *this;
-		}
-
-		ConstIterator operator++(int)
-		{
-			auto tmp = *this;
-			++*this;
-			return tmp;
-		}
-
-		ConstIterator& operator--()
-		{
-			--m_ptr;
-			return *this;
-		}
-
-		ConstIterator operator--(int)
-		{
-			auto tmp = *this;
-			--*this;
-			return tmp;
-		}
-
-		ConstIterator& operator+=(const difference_type offset)
-		{
-			m_ptr += offset;
-			return *this;
-		}
-
-		[[nodiscard]] ConstIterator operator+(const difference_type offset) const
-		{
-			auto tmp = *this;
-			return tmp += offset;
-		}
-
-		ConstIterator& operator-=(const difference_type offset)
-		{
-			return (*this += -offset);
-		}
-
-		[[nodiscard]] ConstIterator operator-(const difference_type offset) const
-		{
-			auto tmp = *this;
-			return tmp -= offset;
-		}
-
-		[[nodiscard]] difference_type operator-(const ConstIterator& right) const
-		{
-			return m_ptr - right.m_ptr;
-		}
-
-		[[nodiscard]] reference operator[](const difference_type offset) const
-		{
-			return *(*this + offset);
-		}
-
-		[[nodiscard]] bool operator==(const ConstIterator& right) const
-		{
-			return m_ptr == right.m_ptr;
-		}
-
-		[[nodiscard]] bool operator!=(const ConstIterator& right) const
-		{
-			return !(*this == right);
-		}
-
-		[[nodiscard]] bool operator<(const ConstIterator& right) const
-		{
-			return m_ptr < right.m_ptr;
-		}
-
-		[[nodiscard]] bool operator>(const ConstIterator& right) const
-		{
-			return right < *this;
-		}
-
-		[[nodiscard]] bool operator<=(const ConstIterator& right) const
-		{
-			return !(right < *this);
-		}
-
-		[[nodiscard]] bool operator>=(const ConstIterator& right) const
-		{
-			return !(*this < right);
-		}
-
-	private:
-		pointer m_ptr = nullptr;
-	};
-
-	// Iterator for mutable string
-	class Iterator : public ConstIterator
-	{
-	public:
-		using iterator_category = std::random_access_iterator_tag;
-
-		using value_type = typename CXStr::value_type;
-		using difference_type = typename CXStr::difference_type;
-		using pointer = typename CXStr::pointer;
-		using reference = value_type&;
-
-		Iterator() = default;
-		Iterator(pointer p) : ConstIterator(p) {}
-
-		[[nodiscard]] reference operator*() const
-		{
-			return const_cast<reference>(ConstIterator::operator*());
-		}
-
-		[[nodiscard]] pointer operator->() const
-		{
-			return std::pointer_traits<pointer>::pointer_to(**this);
-		}
-
-		Iterator& operator++()
-		{
-			++*(ConstIterator*)this;
-			return *this;
-		}
-
-		Iterator operator++(int)
-		{
-			auto tmp = *this;
-			++*this;
-			return tmp;
-		}
-
-		Iterator& operator--()
-		{
-			--*(ConstIterator*)this;
-			return *this;
-		}
-
-		Iterator operator--(int)
-		{
-			auto tmp = *this;
-			--*this;
-			return tmp;
-		}
-
-		Iterator& operator+=(const difference_type offset)
-		{
-			*(ConstIterator*)this += offset;
-			return *this;
-		}
-
-		[[nodiscard]] Iterator operator+(const difference_type offset) const
-		{
-			auto tmp = *this;
-			return tmp += offset;
-		}
-
-		Iterator& operator-=(const difference_type offset)
-		{
-			return *this += -offset;
-		}
-
-		[[nodiscard]] Iterator operator-(const difference_type offset) const
-		{
-			auto tmp = *this;
-			return tmp -= offset;
-		}
-
-		[[nodiscard]] difference_type operator-(const ConstIterator& right) const
-		{
-			return *(ConstIterator*)this - right;
-		}
-
-		[[nodiscard]] reference operator[](const difference_type offset) const
-		{
-			return *(*this + offset);
-		}
-	};
-
-	using iterator = Iterator;
-	using const_iterator = ConstIterator;
-	using reverse_iterator = std::reverse_iterator<iterator>;
-	using const_reverse_iterator = std::reverse_iterator<const_iterator>;
-
-	template <typename StringViewIsh>
-	using is_string_view_ish = std::enable_if_t<
-		std::conjunction_v<
-		std::is_convertible<const StringViewIsh&, std::string_view>,
-		std::negation<std::is_convertible<const StringViewIsh&, const char*>>
-		>>;
-
-	template <typename Iter>
-	using is_elem_cptr = std::bool_constant<std::_Is_any_of_v<Iter, const char* const, char* const, const char*, char*>>;
-
-	static const size_type npos = -1;
-
-	static inline const char* const s_defaultEmptyString = "";
-
-	// Default constructor. Constructs empty string (zero size)
-	CXStr() = default;
-
-	// Copy constructor. Constructs the string with a copy of the contents of other.
-	CXStr(const CXStr& other)
-	{
-		// Do not share strings across free lists. Makes a deep copy of the string
-		// on our own free list if the string isn't a part of our own free list.
-		if (other.m_data && internal::GetCXFreeList() != other.m_data->freeList)
-		{
-			assign(std::string_view{ other });
-		}
-		else
-		{
-			m_data = other.m_data;
-			if (m_data)
-				++m_data->refCount;
-		}
-	}
-
-	// Constructs the string with a substring [pos, pos + count) of other.
-	// If count == npos, if count is not specified, or if the requested
-	// substring lasts past the end of the string, the resulting substring is
-	// [pos, other.size()]
-	CXStr(const CXStr& other, size_type pos)
-	{
-		assign(other, pos);
-	}
-
-	CXStr(const CXStr& other, size_type pos, size_type count)
-	{
-		assign(other, pos, count);
-	}
-
-	// Constructing a CXStr with nullptr just initializes an empty CXStr.
-	CXStr(nullptr_t)
-	{
-	}
-
-	// Constructs the string with the contents initialized with a copy of the
-	// null-terminated character string pointed to by s. The length of the string
-	// is determined by the first null character. The behavior is undefined if
-	// [s, s + Traits::length(s)] is not a valid range (for example, if s is a
-	// null pointer).
-	CXStr(const char* s)
-	{
-		assign(s);
-	}
-
-	// Constructs the string with the first count characters of character string
-	// pointed to by s. s can contain null characters. Thelength of the string is
-	// count. The behavior is undefined if [s, s + count) is not a valid range.
-	CXStr(const char* s, size_type count)
-	{
-		assign(s, count);
-	}
-
-	// Constructs the string with count copies of character ch.
-	CXStr(size_type count, char ch)
-	{
-		assign(count, ch);
-	}
-
-	// Constructs the string with a signle character.
-	CXStr(char ch)
-	{
-		assign(1, ch);
-	}
-
-	// Constructs the string with the contents of the range [first, last).
-	template <typename InputIt, typename = std::enable_if_t<is_iterator_v<InputIt>>>
-	CXStr(InputIt first, InputIt last)
-	{
-		assign(first, last);
-	}
-
-	// Move constructor. Constructs the string with the contents of other using
-	// move semantics. other is left in valid, empty state.
-	CXStr(CXStr&& other) noexcept
-	{
-		// Do not share strings across free lists. Makes a deep copy of the string
-		// on our own free list if the string isn't a part of our own free list.
-		if (other.m_data && internal::GetCXFreeList() != other.m_data->freeList)
-		{
-			// string_view here forces a deep copy. An ideal implementation would provide
-			// a more direct and efficient deep copy implementation
-			assign(std::string_view{ other });
-
-			FreeRep(other.m_data);
-		}
-		else
-		{
-			m_data = other.m_data;
-		}
-
-		other.m_data = nullptr;
-	}
-
-	// Constructs the string with the contents of the initializer list ilist.
-	CXStr(std::initializer_list<char> ilist)
-	{
-		assign(ilist.begin(), static_cast<size_type>(ilist.size()));
-	}
-
-	// Implicitly converts t to a string view sv as if by std::string_view sv = t,
-	// then initializes the string with the contents of sv, as if by CXStr(sv.data(),
-	// sv.size()). This overload only participates in overload resolution if t is
-	// convertible to std::string_view but not convertible to const char*.
-	template <typename T, typename = is_string_view_ish<T>>
-	explicit CXStr(const T& t)
-	{
-		assign(t);
-	}
-
-	// Implicitly converts t to a string_view sv as if by std::string_view sv = t;,
-	// then initializes the string with the subrange [pos, pos + n) of sv as if by
-	// using CXStr(sv.substr(pos, n), a). This overload only participates in overload
-	// resolution if t is convertible to std::string_view.
-	template <typename T, typename = is_string_view_ish<T>>
-	CXStr(const T& t, size_type pos, size_type n)
-	{
-		assign(t, pos, n);
-	}
-
-	// Destructor. Decrements the reference count of the internal CStrRep. If the ref
-	// count reaches zero, the CStrRep is destroyed.
-	~CXStr()
-	{
-		FreeRep(m_data);
-		m_data = nullptr;
-	}
-
-	// Replaces the contents with a copy of str. If *this and str are the same object,
-	// this function has no effect.
-	CXStr& operator=(const CXStr& str)
-	{
-		if (this != std::addressof(str))
-		{
-			// Do not share strings across free lists. Makes a deep copy of the string
-			// on our own free list if the string isn't a part of our own free list.
-			if (str.m_data && internal::GetCXFreeList() != str.m_data->freeList)
-			{
-				assign(std::string_view{ str });
-				return *this;
-			}
-
-			// increment other first in case they both share the same rep.
-			if (str.m_data)
-				++str.m_data->refCount;
-
-			FreeRep(m_data);
-			m_data = str.m_data;
-		}
-		return *this;
-	}
-
-	// Replaces the contents with those of str using move semantics. str is in a valid
-	// and empty state afterwards. References, pointers, and iterators to str may be
-	// invalidated.
-	CXStr& operator=(CXStr&& str) noexcept
-	{
-		if (this != std::addressof(str))
-		{
-			// Do not share strings across free lists. Makes a deep copy of the string
-			// on our own free list if the string isn't a part of our own free list.
-			if (str.m_data && internal::GetCXFreeList() != str.m_data->freeList)
-			{
-				assign(std::string_view{ str });
-				return *this;
-			}
-
-			// If they both point to the same rep we don't want to release.
-			if (str.m_data != m_data)
-				FreeRep(m_data);
-
-			m_data = str.m_data;
-			str.m_data = nullptr;
-		}
-		return *this;
-	}
-
-	// Replaces the contents with those of null-terminated character string pointed to
-	// by s as if by assign(s, Traits::length(s));
-	CXStr& operator=(const char* s)
-	{
-		return assign(s);
-	}
-
-	// Replaces the contents with character ch as if by assign(std::addressof(ch), 1);
-	CXStr& operator=(char ch)
-	{
-		return assign(std::addressof(ch), 1);
-	}
-
-	// Replaces the contents with those of the initializer list ilist as if by
-	// assign(ilist.begin(), ilist.size());
-	CXStr& operator=(std::initializer_list<char> ilist)
-	{
-		return assign(ilist.begin(), static_cast<size_type>(ilist.size()));
-	}
-
-	// Implicitly converts t to a string_view sv as if by std::string_view sv = t;,
-	// then replaces the contents with those of the sv as if by assign(sv). This
-	// overload only participates in overload resolution if t is convertible to
-	// string_view but not const char*.
-	template <typename T, typename = is_string_view_ish<T>>
-	CXStr& operator=(const T& t)
-	{
-		return assign(t);
-	}
-
-	// Replaces the contents with count copies of ch.
-	CXStr& assign(size_type count, char ch)
-	{
-		FreeRep(m_data);
-		m_data = nullptr;
-
-		Assure(count + 1, StringEncodingUtf8);
-
-		m_data->length = static_cast<uint32_t>(count);
-		traits_type::assign(m_data->utf8, count, ch);
-		traits_type::assign(m_data->utf8[count], value_type());
-
-		return *this;
-	}
-
-	// Replaces the contents with a copy of str. Equivalent to *this = str;
-	CXStr& assign(const CXStr& str)
-	{
-		*this = str;
-		return *this;
-	}
-
-	// Replaces the contents with a substring [pos, pos + count) of str. If the
-	// requested substring lasts past the end of the string, or if count == npos,
-	// the resulting substring is [pos, str.size()). If pos > str.size(),
-	// std::out_of_range is thrown.
-	CXStr& assign(const CXStr& str, size_type pos, size_type count = npos)
-	{
-		str.CheckOffset(pos);
-		count = str.ClampSuffixSize(pos, count);
-		return assign(str.data() + pos, count);
-	}
-
-	// Replaces the contents with those of str using move semantics. Equivalent to
-	// *this = std::move(str).
-	CXStr& assign(CXStr&& str) noexcept
-	{
-		*this = std::move(str);
-		return *this;
-	}
-
-	// Replaces the contents with copies of characters in the range [s, s + count).
-	// This range can contain null characters.
-	CXStr& assign(const char* s, size_type count)
-	{
-		FreeRep(m_data);
-		m_data = nullptr;
-
-		if (count == 0)
-			return *this;
-
-		Assure(count + 1, StringEncodingUtf8);
-
-		m_data->length = static_cast<uint32_t>(count);
-		traits_type::move(m_data->utf8, s, count);
-		traits_type::assign(m_data->utf8[count], value_type());
-
-		return *this;
-	}
-
-	// Replaces the contents with those of null-terminated character string pointed
-	// to by s. The length of the string is determined by the first null character
-	// using Traits::length(s);
-	CXStr& assign(const char* s)
-	{
-		return assign(s, static_cast<size_type>(traits_type::length(s)));
-	}
-
-	// Replaces the contents with copies of the characters in the range [first, last).
-	// This overload does not participate in overload resolution if InputIt does not
-	// satisfy LegacyInputIterator.
-	template <typename InputIt, typename = std::enable_if_t<is_iterator_v<InputIt>>>
-	CXStr& assign(InputIt first, InputIt last)
-	{
-		return replace(begin(), end(), first, last);
-	}
-
-	// Replaces the contents with those of the initializer list ilist.
-	CXStr& assign(std::initializer_list<char> ilist)
-	{
-		return assign(ilist.begin(), static_cast<size_type>(ilist.size()));
-	}
-
-	// Implicitly converts t to a string_view sv as if by std::string_view sv = t;,
-	// then replaces the contents with those of sv, as if by assign(sv.data(),
-	// sv.size()). This overload only participate sin overload resolution if
-	// t is convertible to string_view but not const char*.
-	template <typename T, typename = is_string_view_ish<T>>
-	CXStr& assign(const T& t)
-	{
-		const std::string_view sv = t;
-		return assign(sv.data(), static_cast<size_type>(sv.size()));
-	}
-
-	// Implicitly converts t to a string_view sv as if by std::stirng_view sv = t;,
-	// then replaces the contents with the characters from the subview [pos,
-	// pos + count) of sv. If the requested subview lasts past the end of sv, or
-	// if count == npos, the resulting subview is [pos, sv.size()). If pos > sv.size()
-	// std::out_of_range is thrown. This overload only participates in overload
-	// resolution if t is convertible to string_view but not const char*.
-	template <typename T, typename = is_string_view_ish<T>>
-	CXStr& assign(const T& t, size_type pos, size_type count = npos)
-	{
-		const std::string_view sv = t;
-		return assign(sv.substr(pos, count));
-	}
-
-	// ** Element access **
-
-	// Returns a reference to the character at specified location pos. Bounds checking
-	// is performed, exception of type std::out_of_range will be thrown on invalid
-	// access.
-	[[nodiscard]] reference at(size_type pos)
-	{
-		AssureAccessible();
-		CheckOffsetExclusive(pos);
-
-		// can only interact with utf8 based strings
-		SetEncoding(StringEncodingUtf8);
-		return m_data->utf8[pos];
-	}
-
-	[[nodiscard]] const_reference at(size_type pos) const
-	{
-		AssureAccessible();
-		CheckOffsetExclusive(pos);
-
-		// We can only interact with utf8 based strings.
-		SetEncoding(StringEncodingUtf8);
-		return m_data->utf8[pos];
-	}
-
-	// Returns a reference to the character at specified location pos. No bounds
-	// checking is performed. If pos > size(), the behavior is undefined.
-	reference operator[](size_type pos)
-	{
-		AssureAccessible();
+   public:
+    // Types to give CXStr the qualities of a std::string
+    using traits_type     = std::char_traits<char>;
+    using value_type      = char;
+    using allocator_type  = eqlib::everquest_allocator<char>;
+    using size_type       = size_t;
+    using difference_type = std::allocator_traits<allocator_type>::difference_type;
+    using reference       = value_type&;
+    using const_reference = const value_type&;
+    using pointer         = std::allocator_traits<allocator_type>::pointer;
+    using const_pointer   = std::allocator_traits<allocator_type>::const_pointer;
+
+    // iterator for immutable string.
+    class ConstIterator
+    {
+       public:
+        using iterator_category = std::random_access_iterator_tag;
+
+        using value_type      = typename CXStr::value_type;
+        using difference_type = typename CXStr::difference_type;
+        using pointer         = typename CXStr::const_pointer;
+        using reference       = const value_type&;
+
+        ConstIterator() = default;
+        ConstIterator(pointer ptr) : m_ptr(ptr) {}
+
+        [[nodiscard]] reference operator*() const
+        {
+            return *m_ptr;
+        }
+
+        [[nodiscard]] pointer operator->() const
+        {
+            return std::pointer_traits<pointer>::pointer_to(**this);
+        }
+
+        ConstIterator& operator++()
+        {
+            ++m_ptr;
+            return *this;
+        }
+
+        ConstIterator operator++(int)
+        {
+            auto tmp = *this;
+            ++*this;
+            return tmp;
+        }
+
+        ConstIterator& operator--()
+        {
+            --m_ptr;
+            return *this;
+        }
+
+        ConstIterator operator--(int)
+        {
+            auto tmp = *this;
+            --*this;
+            return tmp;
+        }
+
+        ConstIterator& operator+=(const difference_type offset)
+        {
+            m_ptr += offset;
+            return *this;
+        }
+
+        [[nodiscard]] ConstIterator operator+(const difference_type offset) const
+        {
+            auto tmp = *this;
+            return tmp += offset;
+        }
+
+        ConstIterator& operator-=(const difference_type offset)
+        {
+            return (*this += -offset);
+        }
+
+        [[nodiscard]] ConstIterator operator-(const difference_type offset) const
+        {
+            auto tmp = *this;
+            return tmp -= offset;
+        }
+
+        [[nodiscard]] difference_type operator-(const ConstIterator& right) const
+        {
+            return m_ptr - right.m_ptr;
+        }
+
+        [[nodiscard]] reference operator[](const difference_type offset) const
+        {
+            return *(*this + offset);
+        }
+
+        [[nodiscard]] bool operator==(const ConstIterator& right) const
+        {
+            return m_ptr == right.m_ptr;
+        }
+
+        [[nodiscard]] bool operator!=(const ConstIterator& right) const
+        {
+            return !(*this == right);
+        }
+
+        [[nodiscard]] bool operator<(const ConstIterator& right) const
+        {
+            return m_ptr < right.m_ptr;
+        }
+
+        [[nodiscard]] bool operator>(const ConstIterator& right) const
+        {
+            return right < *this;
+        }
+
+        [[nodiscard]] bool operator<=(const ConstIterator& right) const
+        {
+            return !(right < *this);
+        }
+
+        [[nodiscard]] bool operator>=(const ConstIterator& right) const
+        {
+            return !(*this < right);
+        }
+
+       private:
+        pointer m_ptr = nullptr;
+    };
+
+    // Iterator for mutable string
+    class Iterator : public ConstIterator
+    {
+       public:
+        using iterator_category = std::random_access_iterator_tag;
+
+        using value_type      = typename CXStr::value_type;
+        using difference_type = typename CXStr::difference_type;
+        using pointer         = typename CXStr::pointer;
+        using reference       = value_type&;
+
+        Iterator() = default;
+        Iterator(pointer p) : ConstIterator(p) {}
+
+        [[nodiscard]] reference operator*() const
+        {
+            return const_cast<reference>(ConstIterator::operator*());
+        }
+
+        [[nodiscard]] pointer operator->() const
+        {
+            return std::pointer_traits<pointer>::pointer_to(**this);
+        }
+
+        Iterator& operator++()
+        {
+            ++*(ConstIterator*) this;
+            return *this;
+        }
+
+        Iterator operator++(int)
+        {
+            auto tmp = *this;
+            ++*this;
+            return tmp;
+        }
+
+        Iterator& operator--()
+        {
+            --*(ConstIterator*) this;
+            return *this;
+        }
+
+        Iterator operator--(int)
+        {
+            auto tmp = *this;
+            --*this;
+            return tmp;
+        }
+
+        Iterator& operator+=(const difference_type offset)
+        {
+            *(ConstIterator*) this += offset;
+            return *this;
+        }
+
+        [[nodiscard]] Iterator operator+(const difference_type offset) const
+        {
+            auto tmp = *this;
+            return tmp += offset;
+        }
+
+        Iterator& operator-=(const difference_type offset)
+        {
+            return *this += -offset;
+        }
+
+        [[nodiscard]] Iterator operator-(const difference_type offset) const
+        {
+            auto tmp = *this;
+            return tmp -= offset;
+        }
+
+        [[nodiscard]] difference_type operator-(const ConstIterator& right) const
+        {
+            return *(ConstIterator*) this - right;
+        }
+
+        [[nodiscard]] reference operator[](const difference_type offset) const
+        {
+            return *(*this + offset);
+        }
+    };
+
+    using iterator               = Iterator;
+    using const_iterator         = ConstIterator;
+    using reverse_iterator       = std::reverse_iterator<iterator>;
+    using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+
+    template <typename StringViewIsh>
+    using is_string_view_ish = std::enable_if_t<
+        std::conjunction_v<std::is_convertible<const StringViewIsh&, std::string_view>,
+                           std::negation<std::is_convertible<const StringViewIsh&, const char*>>>>;
+
+    template <typename Iter>
+    using is_elem_cptr = std::bool_constant<
+        std::_Is_any_of_v<Iter, const char* const, char* const, const char*, char*>>;
+
+    static const size_type npos = -1;
+
+    static inline const char* const s_defaultEmptyString = "";
+
+    // Default constructor. Constructs empty string (zero size)
+    CXStr() = default;
+
+    // Copy constructor. Constructs the string with a copy of the contents of other.
+    CXStr(const CXStr& other)
+    {
+        // Do not share strings across free lists. Makes a deep copy of the string
+        // on our own free list if the string isn't a part of our own free list.
+        if (other.m_data && internal::GetCXFreeList() != other.m_data->freeList)
+        {
+            assign(std::string_view{other});
+        }
+        else
+        {
+            m_data = other.m_data;
+            if (m_data)
+                ++m_data->refCount;
+        }
+    }
+
+    // Constructs the string with a substring [pos, pos + count) of other.
+    // If count == npos, if count is not specified, or if the requested
+    // substring lasts past the end of the string, the resulting substring is
+    // [pos, other.size()]
+    CXStr(const CXStr& other, size_type pos)
+    {
+        assign(other, pos);
+    }
+
+    CXStr(const CXStr& other, size_type pos, size_type count)
+    {
+        assign(other, pos, count);
+    }
+
+    // Constructing a CXStr with nullptr just initializes an empty CXStr.
+    CXStr(nullptr_t) {}
+
+    // Constructs the string with the contents initialized with a copy of the
+    // null-terminated character string pointed to by s. The length of the string
+    // is determined by the first null character. The behavior is undefined if
+    // [s, s + Traits::length(s)] is not a valid range (for example, if s is a
+    // null pointer).
+    CXStr(const char* s)
+    {
+        assign(s);
+    }
+
+    // Constructs the string with the first count characters of character string
+    // pointed to by s. s can contain null characters. Thelength of the string is
+    // count. The behavior is undefined if [s, s + count) is not a valid range.
+    CXStr(const char* s, size_type count)
+    {
+        assign(s, count);
+    }
+
+    // Constructs the string with count copies of character ch.
+    CXStr(size_type count, char ch)
+    {
+        assign(count, ch);
+    }
+
+    // Constructs the string with a signle character.
+    CXStr(char ch)
+    {
+        assign(1, ch);
+    }
+
+    // Constructs the string with the contents of the range [first, last).
+    template <typename InputIt, typename = std::enable_if_t<is_iterator_v<InputIt>>>
+    CXStr(InputIt first, InputIt last)
+    {
+        assign(first, last);
+    }
+
+    // Move constructor. Constructs the string with the contents of other using
+    // move semantics. other is left in valid, empty state.
+    CXStr(CXStr&& other) noexcept
+    {
+        // Do not share strings across free lists. Makes a deep copy of the string
+        // on our own free list if the string isn't a part of our own free list.
+        if (other.m_data && internal::GetCXFreeList() != other.m_data->freeList)
+        {
+            // string_view here forces a deep copy. An ideal implementation would provide
+            // a more direct and efficient deep copy implementation
+            assign(std::string_view{other});
+
+            FreeRep(other.m_data);
+        }
+        else
+        {
+            m_data = other.m_data;
+        }
+
+        other.m_data = nullptr;
+    }
+
+    // Constructs the string with the contents of the initializer list ilist.
+    CXStr(std::initializer_list<char> ilist)
+    {
+        assign(ilist.begin(), static_cast<size_type>(ilist.size()));
+    }
+
+    // Implicitly converts t to a string view sv as if by std::string_view sv = t,
+    // then initializes the string with the contents of sv, as if by CXStr(sv.data(),
+    // sv.size()). This overload only participates in overload resolution if t is
+    // convertible to std::string_view but not convertible to const char*.
+    template <typename T, typename = is_string_view_ish<T>>
+    explicit CXStr(const T& t)
+    {
+        assign(t);
+    }
+
+    // Implicitly converts t to a string_view sv as if by std::string_view sv = t;,
+    // then initializes the string with the subrange [pos, pos + n) of sv as if by
+    // using CXStr(sv.substr(pos, n), a). This overload only participates in overload
+    // resolution if t is convertible to std::string_view.
+    template <typename T, typename = is_string_view_ish<T>>
+    CXStr(const T& t, size_type pos, size_type n)
+    {
+        assign(t, pos, n);
+    }
+
+    // Destructor. Decrements the reference count of the internal CStrRep. If the ref
+    // count reaches zero, the CStrRep is destroyed.
+    ~CXStr()
+    {
+        FreeRep(m_data);
+        m_data = nullptr;
+    }
+
+    // Replaces the contents with a copy of str. If *this and str are the same object,
+    // this function has no effect.
+    CXStr& operator=(const CXStr& str)
+    {
+        if (this != std::addressof(str))
+        {
+            // Do not share strings across free lists. Makes a deep copy of the string
+            // on our own free list if the string isn't a part of our own free list.
+            if (str.m_data && internal::GetCXFreeList() != str.m_data->freeList)
+            {
+                assign(std::string_view{str});
+                return *this;
+            }
+
+            // increment other first in case they both share the same rep.
+            if (str.m_data)
+                ++str.m_data->refCount;
+
+            FreeRep(m_data);
+            m_data = str.m_data;
+        }
+        return *this;
+    }
+
+    // Replaces the contents with those of str using move semantics. str is in a valid
+    // and empty state afterwards. References, pointers, and iterators to str may be
+    // invalidated.
+    CXStr& operator=(CXStr&& str) noexcept
+    {
+        if (this != std::addressof(str))
+        {
+            // Do not share strings across free lists. Makes a deep copy of the string
+            // on our own free list if the string isn't a part of our own free list.
+            if (str.m_data && internal::GetCXFreeList() != str.m_data->freeList)
+            {
+                assign(std::string_view{str});
+                return *this;
+            }
+
+            // If they both point to the same rep we don't want to release.
+            if (str.m_data != m_data)
+                FreeRep(m_data);
+
+            m_data     = str.m_data;
+            str.m_data = nullptr;
+        }
+        return *this;
+    }
+
+    // Replaces the contents with those of null-terminated character string pointed to
+    // by s as if by assign(s, Traits::length(s));
+    CXStr& operator=(const char* s)
+    {
+        return assign(s);
+    }
+
+    // Replaces the contents with character ch as if by assign(std::addressof(ch), 1);
+    CXStr& operator=(char ch)
+    {
+        return assign(std::addressof(ch), 1);
+    }
+
+    // Replaces the contents with those of the initializer list ilist as if by
+    // assign(ilist.begin(), ilist.size());
+    CXStr& operator=(std::initializer_list<char> ilist)
+    {
+        return assign(ilist.begin(), static_cast<size_type>(ilist.size()));
+    }
+
+    // Implicitly converts t to a string_view sv as if by std::string_view sv = t;,
+    // then replaces the contents with those of the sv as if by assign(sv). This
+    // overload only participates in overload resolution if t is convertible to
+    // string_view but not const char*.
+    template <typename T, typename = is_string_view_ish<T>>
+    CXStr& operator=(const T& t)
+    {
+        return assign(t);
+    }
+
+    // Replaces the contents with count copies of ch.
+    CXStr& assign(size_type count, char ch)
+    {
+        FreeRep(m_data);
+        m_data = nullptr;
+
+        Assure(count + 1, StringEncodingUtf8);
+
+        m_data->length = static_cast<uint32_t>(count);
+        traits_type::assign(m_data->utf8, count, ch);
+        traits_type::assign(m_data->utf8[count], value_type());
+
+        return *this;
+    }
+
+    // Replaces the contents with a copy of str. Equivalent to *this = str;
+    CXStr& assign(const CXStr& str)
+    {
+        *this = str;
+        return *this;
+    }
+
+    // Replaces the contents with a substring [pos, pos + count) of str. If the
+    // requested substring lasts past the end of the string, or if count == npos,
+    // the resulting substring is [pos, str.size()). If pos > str.size(),
+    // std::out_of_range is thrown.
+    CXStr& assign(const CXStr& str, size_type pos, size_type count = npos)
+    {
+        str.CheckOffset(pos);
+        count = str.ClampSuffixSize(pos, count);
+        return assign(str.data() + pos, count);
+    }
+
+    // Replaces the contents with those of str using move semantics. Equivalent to
+    // *this = std::move(str).
+    CXStr& assign(CXStr&& str) noexcept
+    {
+        *this = std::move(str);
+        return *this;
+    }
+
+    // Replaces the contents with copies of characters in the range [s, s + count).
+    // This range can contain null characters.
+    CXStr& assign(const char* s, size_type count)
+    {
+        FreeRep(m_data);
+        m_data = nullptr;
+
+        if (count == 0)
+            return *this;
+
+        Assure(count + 1, StringEncodingUtf8);
+
+        m_data->length = static_cast<uint32_t>(count);
+        traits_type::move(m_data->utf8, s, count);
+        traits_type::assign(m_data->utf8[count], value_type());
+
+        return *this;
+    }
+
+    // Replaces the contents with those of null-terminated character string pointed
+    // to by s. The length of the string is determined by the first null character
+    // using Traits::length(s);
+    CXStr& assign(const char* s)
+    {
+        return assign(s, static_cast<size_type>(traits_type::length(s)));
+    }
+
+    // Replaces the contents with copies of the characters in the range [first, last).
+    // This overload does not participate in overload resolution if InputIt does not
+    // satisfy LegacyInputIterator.
+    template <typename InputIt, typename = std::enable_if_t<is_iterator_v<InputIt>>>
+    CXStr& assign(InputIt first, InputIt last)
+    {
+        return replace(begin(), end(), first, last);
+    }
+
+    // Replaces the contents with those of the initializer list ilist.
+    CXStr& assign(std::initializer_list<char> ilist)
+    {
+        return assign(ilist.begin(), static_cast<size_type>(ilist.size()));
+    }
+
+    // Implicitly converts t to a string_view sv as if by std::string_view sv = t;,
+    // then replaces the contents with those of sv, as if by assign(sv.data(),
+    // sv.size()). This overload only participate sin overload resolution if
+    // t is convertible to string_view but not const char*.
+    template <typename T, typename = is_string_view_ish<T>>
+    CXStr& assign(const T& t)
+    {
+        const std::string_view sv = t;
+        return assign(sv.data(), static_cast<size_type>(sv.size()));
+    }
+
+    // Implicitly converts t to a string_view sv as if by std::stirng_view sv = t;,
+    // then replaces the contents with the characters from the subview [pos,
+    // pos + count) of sv. If the requested subview lasts past the end of sv, or
+    // if count == npos, the resulting subview is [pos, sv.size()). If pos > sv.size()
+    // std::out_of_range is thrown. This overload only participates in overload
+    // resolution if t is convertible to string_view but not const char*.
+    template <typename T, typename = is_string_view_ish<T>>
+    CXStr& assign(const T& t, size_type pos, size_type count = npos)
+    {
+        const std::string_view sv = t;
+        return assign(sv.substr(pos, count));
+    }
+
+    // ** Element access **
+
+    // Returns a reference to the character at specified location pos. Bounds checking
+    // is performed, exception of type std::out_of_range will be thrown on invalid
+    // access.
+    [[nodiscard]] reference at(size_type pos)
+    {
+        AssureAccessible();
+        CheckOffsetExclusive(pos);
+
+        // can only interact with utf8 based strings
+        SetEncoding(StringEncodingUtf8);
+        return m_data->utf8[pos];
+    }
+
+    [[nodiscard]] const_reference at(size_type pos) const
+    {
+        AssureAccessible();
+        CheckOffsetExclusive(pos);
+
+        // We can only interact with utf8 based strings.
+        SetEncoding(StringEncodingUtf8);
+        return m_data->utf8[pos];
+    }
+
+    // Returns a reference to the character at specified location pos. No bounds
+    // checking is performed. If pos > size(), the behavior is undefined.
+    reference operator[](size_type pos)
+    {
+        AssureAccessible();
 
 #if _ITERATOR_DEBUG_LEVEL >= 1
-		_STL_VERIFY(pos <= m_data->length, "string subscript out of range");
+        _STL_VERIFY(pos <= m_data->length, "string subscript out of range");
 #endif /* _ITERATOR_DEBUG_LEVEL >= 1 */
 
-		// We can only interact with utf8 based strings.
-		SetEncoding(StringEncodingUtf8);
-		return m_data->utf8[pos];
-	}
-	const_reference operator[](size_type pos) const
-	{
-		AssureAccessible();
+        // We can only interact with utf8 based strings.
+        SetEncoding(StringEncodingUtf8);
+        return m_data->utf8[pos];
+    }
+    const_reference operator[](size_type pos) const
+    {
+        AssureAccessible();
 
 #if _ITERATOR_DEBUG_LEVEL >= 1
-		_STL_VERIFY(pos <= m_data->length, "string subscript out of range");
+        _STL_VERIFY(pos <= m_data->length, "string subscript out of range");
 #endif /* _ITERATOR_DEBUG_LEVEL >= 1 */
 
-		// We can only interact with utf8 based strings.
-		SetEncoding(StringEncodingUtf8);
-		return m_data->utf8[pos];
-	}
-
-	// Returns reference to the first character in the string. The behavior is
-	// undefined if empty() == true.
-	reference front() { return operator[](0); }
-	const_reference front() const { return operator[](0); }
-
-	// Returns reference to the last character in the string. The behavior is
-	// undefined if empty() == true.
-	reference back() { return operator[](size() - 1); }
-	const_reference back() const { return operator[](size() - 1); }
-
-	// Returns a pointer to the underlying array serving as character storage. The
-	// pointer is such that the range [data(), data() + size()) is valid and the
-	// values correspond to the values stored in the string.
-	// The returned array is null-terminated. That is, data() and c_str() perform
-	// the same function. If empty() returns true, the pointer points to a single
-	// null character.
-	pointer mutable_data() noexcept
-	{
-		AssureCopy();
-
-		SetEncoding(StringEncodingUtf8);
-		return m_data->utf8;
-	}
-
-	const_pointer data() const noexcept
-	{
-		if (!m_data)
-			return s_defaultEmptyString;
-
-		SetEncoding(StringEncodingUtf8);
-		return m_data->utf8;
-	}
-
-	// Returns a pointer to a null-terminated character array with data equivalent
-	// to those stored in the string. See data()
-	const_pointer c_str() const noexcept
-	{
-		return data();
-	}
-
-	// Returns a std::string_view, constructed as if by string_view(data(), size())
-	operator std::string_view() const noexcept
-	{
-		return std::string_view(data(), size());
-	}
-
-	// ** Iterators **
-
-	// Returns an iterator to the first character of the string.
-	iterator begin() noexcept
-	{
-		AssureAccessible();
-		return iterator(m_data->utf8);
-	}
-
-	const_iterator begin() const noexcept
-	{
-		AssureAccessible();
-		return const_iterator(m_data->utf8);
-	}
-
-	const_iterator cbegin() const noexcept
-	{
-		return begin();
-	}
-
-	// Returns an iterator to the character following the last character of the
-	// string. This character acts as a placeholder, attempting to access it
-	// results in undefined behavior.
-	iterator end() noexcept
-	{
-		AssureAccessible();
-		return iterator(m_data->utf8 + m_data->length);
-	}
-
-	const_iterator end() const noexcept
-	{
-		AssureAccessible();
-		return const_iterator(m_data->utf8 + m_data->length);
-	}
-
-	const_iterator cend() const noexcept
-	{
-		return end();
-	}
-
-	// Returns a reverse iterator to the first characer of the reversed string.
-	// It corresponds to the last character of the non-reversed string.
-	reverse_iterator rbegin() noexcept
-	{
-		return reverse_iterator{ end() };
-	}
-
-	const_reverse_iterator rbegin() const noexcept
-	{
-		return const_reverse_iterator{ end() };
-	}
-
-	const_reverse_iterator crbegin() const noexcept
-	{
-		return rbegin();
-	}
-
-	// Returns a reverse iterator to the character following the last character of
-	// the reversed string. It corresponds to the character preceding the first
-	// character of the non-reversed string. This character acts as a placeholder,
-	// attempting to access it results in undefined behavior.
-	reverse_iterator rend() noexcept
-	{
-		return reverse_iterator{ begin() };
-	}
-
-	const_reverse_iterator rend() const noexcept
-	{
-		return const_reverse_iterator{ begin() };
-	}
-
-	const_reverse_iterator crend() const noexcept
-	{
-		return rend();
-	}
-
-	// ** Capacity **
-
-	// Checks if the string has no characters
-	[[nodiscard]] bool empty() const noexcept { return length() == 0; }
-
-	// Returns the number of char elements in the string.
-	size_type size() const noexcept { return m_data ? m_data->length : 0; }
-	size_type length() const noexcept { return m_data ? m_data->length : 0; }
-
-	// Informs a CXStr object of a planned change in size, so that it can manage
-	// the storage allocation appropriately. If new_cap is greater than the current
-	// capacity(), new storage is allocated, and capacity() is made equal or greater
-	// than new_cap.
-	// If new_cap is less than the current capacity(), there is no effect.
-	// A call to reserve with no argument is a non-binding shrink-to-fit request.
-	// After this call, capacity() has an unspecified value greater than or equal
-	// to size().
-	void reserve(size_type new_cap)
-	{
-		if (new_cap <= capacity())
-			return;
-
-		Assure(new_cap, GetEncoding());
-	}
-
-	void reserve()
-	{
-	}
-
-	// Returns the number of characters that the string has currentlly allocated
-	// space for.
-	size_type capacity() const noexcept { return m_data ? m_data->alloc : 0; }
-
-	// ** Operations **
-
-	// Removes all characters from the string as if by executing erase(begin(), end()).
-	// All pointers, references, and iterators are invalidated.
-	void clear() noexcept
-	{
-		FreeRep(m_data);
-		m_data = nullptr;
-	}
-
-	// Inserts count copies of character ch at the position index
-	CXStr& insert(size_type index, size_type count, char ch)
-	{
-		CheckOffset(index);
-		Assure(size() + count + 1, StringEncodingUtf8);
-
-		size_t oldSize = m_data->length;
-		m_data->length = static_cast<uint32_t>(oldSize + count);
-		char* ptr = m_data->utf8;
-		char* insertPos = ptr + index;
-
-		// Move suffix + null byte to end
-		traits_type::move(insertPos + count, insertPos, oldSize - index + 1);
-
-		// Fill hole
-		traits_type::assign(insertPos, count, ch);
-
-		return *this;
-	}
-
-	// Inserts null-terminated character string pointed to by s at the position index.
-	// The length of the string is determined by the first null character using
-	// Traits::length(s).
-	CXStr& insert(size_type index, const char* s)
-	{
-		return insert(index, s, (size_type)traits_type::length(s));
-	}
-
-	// Inserts the characters in the range [s, s + count) at the position index. The
-	// range can contain null characters.
-	CXStr& insert(size_type index, const char* s, size_type count)
-	{
-		CheckOffset(index);
-		Assure(size() + count + 1, StringEncodingUtf8);
-
-		size_t oldSize = m_data->length;
-		m_data->length = static_cast<uint32_t>(oldSize + count);
-		char* ptr = m_data->utf8;
-		char* insertPos = ptr + index;
-
-		// handle case where s may be aliasing data that is shifting.
-		size_t shifted;
-		if (s + count <= insertPos || s > ptr + oldSize)
-		{
-			// inserted content is before the shifted region or doesn't alias
-			shifted = count;
-		}
-		else if (insertPos <= s)
-		{
-			// all of [s, s + count) shifts
-			shifted = 0;
-		}
-		else
-		{
-			// [s, s + count) contains insertPos, so only part after insertPos shifts.
-			shifted = static_cast<size_t>(insertPos - s);
-		}
-
-		traits_type::move(insertPos + count, insertPos, oldSize - index + 1); // move suffix + null
-		traits_type::copy(insertPos, s, shifted);
-		traits_type::copy(insertPos + shifted, s + count + shifted, count - shifted);
-
-		return *this;
-	}
-
-	// Inserts string str at the position index.
-	CXStr& insert(size_type index, const CXStr& str)
-	{
-		if (str.empty())
-			return *this;
-
-		return insert(index, str.data(), str.size());
-	}
-
-	// Inserts a string, obtained by str.substr(index_str, count) at the position index
-	CXStr& insert(size_type index, const CXStr& str, size_type index_str, size_type count = npos)
-	{
-		std::string_view sv = str;
-		return insert(index, sv.substr(index_str, count));
-	}
-
-	// Inserts a character ch before the character pointed by pos.
-	iterator insert(const_iterator pos, char ch)
-	{
-		const difference_type offset = pos - begin();
-		insert(static_cast<size_type>(offset), 1, ch);
-		return begin() + offset;
-	}
-
-	// Inserts count copies of character ch before the element (if any) pointed by pos.
-	iterator insert(const_iterator pos, size_type count, char ch)
-	{
-		const difference_type offset = pos - begin();
-		insert(static_cast<size_type>(offset), count, ch);
-		return begin() + offset;
-	}
-
-	// Inserts characters from the range [first, last) before the element (if any)
-	// pointed by pos. This overload does not participate in overload resolution if
-	// InputIt does not satisfy LegacyInputIterator.
-	template <typename InputIt, typename = std::enable_if_t<is_iterator_v<InputIt>>>
-	iterator insert(const_iterator pos, InputIt first, InputIt last)
-	{
-		const difference_type offset = pos - begin();
-		replace(pos, pos, first, last);
-		return begin() + offset;
-	}
-
-	// Inserts elements from initializer_list ilist before the element (if any) pointed
-	// by pos.
-	iterator insert(const_iterator pos, std::initializer_list<char> ilist)
-	{
-		const difference_type offset = pos - begin();
-		insert(static_cast<size_type>(offset), ilist.begin(), static_cast<size_type>(ilist.size()));
-		return begin() + offset;
-	}
-
-	// Implicitly converts t to a string_view sv as if by std::string_view sv = t;,
-	// then inserts the elements from sv before the element (if any) pointed by pos,
-	// as if by insert(pos, sv.data(), sv.size()). This overload only participates in
-	// overload resolution if t is convertible to string_view but not const char*.
-	template <typename T, typename = is_string_view_ish<T>>
-	CXStr& insert(size_type pos, const T& t)
-	{
-		std::string_view sv = t;
-		return insert(pos, sv.data(), static_cast<size_type>(sv.size()));
-	}
-
-	// Implicitly converts t to a string_view sv as if by std::string_view sv = t;,
-	// then inserts, before the element (if any) pointed by pos, the characters from
-	// the subview [index_str, index_str + count) of sv. If the requested subview lasts
-	// past the end of sv, or if count == npos, the resulting subview is [index_str,
-	// sv.size()). If index_str > sv.size(), or if index > size(), std::out_of_range is
-	// thrown. This overload only participates in overload resolution if t is
-	// convertible to string_view but not const char*.
-	template <typename T, typename = is_string_view_ish<T>>
-	CXStr& insert(size_type pos, const T& t, size_type index_str, size_type count = npos)
-	{
-		std::string_view sv = t;
-		return insert(pos, sv.substr(index_str, count));
-	}
-
-	// Erases [index, ...) from the string
-	CXStr& erase(size_type index = 0)
-	{
-		if (index == 0)
-			clear();
-		else
-		{
-			CheckOffset(index);
-			Assure(size() + 1, StringEncodingUtf8);
-
-			traits_type::assign(m_data->utf8[m_data->length = static_cast<uint32_t>(index)], value_type());
-		}
-
-		return *this;
-	}
-
-	// Removes min(count(), size() - index) characters from the string, starting at index.
-	CXStr& erase(size_type index, size_type count)
-	{
-		CheckOffset(index);
-		Assure(size() + 1, StringEncodingUtf8);
-
-		count = ClampSuffixSize(index, count);
-		const size_type oldSize = m_data->length;
-		char* ptr = m_data->utf8;
-		char* eraseAt = ptr + index;
-		const size_type newSize = oldSize - count;
-		m_data->length = static_cast<uint32_t>(newSize);
-		traits_type::move(eraseAt, eraseAt + count, newSize - index + 1); // move suffix and null up
-
-		return *this;
-	}
-
-	// Removes the character at the specified position from the string
-	iterator erase(const_iterator position)
-	{
-		const difference_type offset = position - begin();
-		erase(static_cast<size_type>(offset), 1);
-		return begin() + offset;
-	}
-
-	// Removes the characters in the range [first, last) from the string.
-	iterator erase(const_iterator first, const_iterator last)
-	{
-		const difference_type offset = first - begin();
-		erase(static_cast<size_type>(offset), static_cast<size_type>(last - first));
-		return begin() + offset;
-	}
-
-	// Appends the given character ch to the end of the string.
-	void push_back(char ch)
-	{
-		Assure(size() + 2, StringEncodingUtf8);
-
-		size_type oldSize = m_data->length++;
-		traits_type::assign(m_data->utf8[oldSize], ch);
-		traits_type::assign(m_data->utf8[oldSize + 1], value_type());
-	}
-
-	// Removes the last character frmo the string. Equivalent to erase(end() - 1). The
-	// behavior is undefined if the string is empty.
-	void pop_back()
-	{
-		erase(size() - 1);
-	}
-
-	// Appends count copies of character ch
-	CXStr& append(size_type count, char ch)
-	{
-		Assure(size() + count + 1, StringEncodingUtf8);
-
-		const size_type oldSize = m_data->length;
-		m_data->length = static_cast<uint32_t>(oldSize + count);
-
-		traits_type::assign(m_data->utf8 + oldSize, count, ch);
-		traits_type::assign(m_data->utf8[oldSize + count], value_type());
-
-		return *this;
-	}
-
-	// Appends string str
-	CXStr& append(const CXStr& str)
-	{
-		return append(str.data(), str.size());
-	}
-
-	// Appends a substring [pos, pos + count) of str. If the requested substring lasts past
-	// the end of the string, or if count == npos, the appended substring is [pos, size()). If
-	// pos > str.size(), std::out_of_range is thrown.
-	CXStr& append(const CXStr& str, size_type pos, size_type count = npos)
-	{
-		std::string_view sv = str;
-		return append(sv.substr(pos, count));
-	}
-
-	// Appends characters in the range [s, s + count). This range can contain null characters.
-	CXStr& append(const char* s, size_type count)
-	{
-		Assure(size() + count + 1, StringEncodingUtf8);
-
-		const size_type oldSize = m_data->length;
-		m_data->length = static_cast<uint32_t>(oldSize + count);
-
-		traits_type::move(m_data->utf8 + oldSize, s, count);
-		traits_type::assign(m_data->utf8[oldSize + count], value_type());
-
-		return *this;
-	}
-
-	// Appends the null-terminated character string pointed to by s. The length of the string is
-	// determined by the first null character.
-	CXStr& append(const char* s)
-	{
-		return append(s, static_cast<size_type>(traits_type::length(s)));
-	}
-
-	// Appends characters in the range [first, last).
-	template <typename InputIt, typename = std::enable_if_t<is_iterator_v<InputIt>>>
-	CXStr& append(InputIt first, InputIt last)
-	{
-		return replace(end(), end(), first, last);
-	}
-
-	// Appends characters from the initializer list ilist.
-	CXStr& append(std::initializer_list<char> ilist)
-	{
-		return append(ilist.begin(), static_cast<size_type>(ilist.size()));
-	}
-
-	// Implicitly converts to to a string view sv as if by string_view sv = t;, then appends all
-	// characters from sv as if by append(sv.data(), sv.size()). This only participates in overload
-	// resolution if t is convertible to string_view but not const char*.
-	template <typename T, typename = is_string_view_ish<T>>
-	CXStr& append(const T& t)
-	{
-		std::string_view sv = t;
-		return append(sv.data(), static_cast<size_type>(sv.size()));
-	}
-
-	// Implicitly converts t to a string view sv as if by string_view sv = t;, then appends the
-	// characters from the subview [pos, pos + count) of sv. If the requested subview extends past
-	// the end of sv,or if count == npos, the appended subview is [pos, sv.size()). If pos >= sv.size(),
-	// std::out_of_range is thrown. This overload only participates in overload resolution if t is
-	// convertible to string view but not const char*.
-	template <typename T, typename = is_string_view_ish<T>>
-	CXStr& append(const T& t, size_type pos, size_type count = npos)
-	{
-		std::string_view sv = t;
-		return append(sv.substr(pos, count));
-	}
-
-	// Appends string str
-	CXStr& operator+=(const CXStr& str)
-	{
-		return append(str);
-	}
-
-	// Appends character ch
-	CXStr& operator+=(char ch)
-	{
-		push_back(ch);
-		return *this;
-	}
-
-	// Appends the null-terminated character string pointed to by s
-	CXStr& operator+=(const char* s)
-	{
-		return append(s);
-	}
-
-	// Appends characters in the initializer list ilist
-	CXStr& operator+=(std::initializer_list<char> ilist)
-	{
-		return append(ilist.begin(), static_cast<size_type>(ilist.size()));
-	}
-
-	// Appends characters in the string_view-like type t
-	template <typename T, typename = is_string_view_ish<T>>
-	CXStr& operator+=(const T& t)
-	{
-		return append(t);
-	}
-
-	// Compares this string to str.
-	int compare(const CXStr& str) const noexcept
-	{
-		return std::string_view{ *this }.compare(std::string_view{ str });
-	}
-
-	// Compares a [pos1, pos1+count1) substring of this string to str
-	int compare(size_type pos1, size_type count1, const CXStr& str) const
-	{
-		return std::string_view{ *this }.compare(pos1, count1, std::string_view{ str });
-	}
-
-	// Compares a [pos1, pos1+count1) substring of this string to a substring [pos2, pos2+count2)
-	// of str. If either string is count > size() - pos, the substring is [pos, size()).
-	int compare(size_type pos1, size_type count1, const CXStr& str,
-		size_type pos2, size_type count2 = npos) const
-	{
-		return std::string_view{ *this }.compare(pos1, count1, std::string_view{ str }, pos2, count2);
-	}
-
-	int compare(const char* s) const
-	{
-		return std::string_view{ *this }.compare(s);
-	}
-
-	int compare(size_type pos1, size_type count1, const char* s) const
-	{
-		return std::string_view{ *this }.compare(pos1, count1, s);
-	}
-
-	int compare(size_type pos1, size_type count1, const char* s, size_type count2) const
-	{
-		return std::string_view{ *this }.compare(pos1, count1, s, count2);
-	}
-
-	template <typename T, typename = is_string_view_ish<T>>
-	int compare(const T& t) const noexcept
-	{
-		return std::string_view{ *this }.compare(t);
-	}
-
-	template <typename T>
-	int compare(size_type pos1, size_type count1, const T& t) const
-	{
-		return std::string_view{ *this }.compare(pos1, count1, t);
-	}
-
-	template <typename T>
-	int compare(size_type pos1, size_type count1, const T& t,
-		size_type pos2, size_type count2 = npos) const
-	{
-		return std::string_view{ *this }.compare(pos1, count1, 2, pos2, count2);
-	}
-
-	// Checks if the string begins with the given prefix.
-	bool starts_with(std::string_view x) const noexcept
-	{
-		return size() >= x.size() && std::string_view{ *this }.compare(0, x.size(), x) == 0;
-	}
-
-	bool starts_with(char x) const noexcept
-	{
-		return size() >= 1 && at(0) == x;
-	}
-
-	bool starts_with(const char* x) const
-	{
-		return starts_with(std::string_view{ x });
-	}
-
-	// Checks if the string ends with the given suffix.
-	bool ends_with(std::string_view x) const noexcept
-	{
-		return size() >= x.size() && std::string_view{ *this }.compare(
-			size() - x.size(), x.size(), x) == 0;
-	}
-
-	bool ends_with(char x) const noexcept
-	{
-		return size() >= 1 && at(size() - 1) == x;
-	}
-
-	bool ends_with(const char* x) const
-	{
-		return ends_with(std::string_view{ x });
-	}
-
-	// Replaces the part of the string indicated by either [pos, pos + count) or
-	// [first, last) with a new string.
-	CXStr& replace(size_type pos, size_type count, const CXStr& str)
-	{
-		std::string_view sv = str;
-		return replace(pos, count, sv.data(), static_cast<size_type>(sv.size()));
-	}
-
-	CXStr& replace(const_iterator first, const_iterator last, const CXStr& str)
-	{
-		return replace(static_cast<size_type>(first - begin()), static_cast<size_type>(last - first), str);
-	}
-
-	CXStr& replace(size_type pos, size_type count, const CXStr& str, size_type pos2, size_type count2 = npos)
-	{
-		std::string_view sv = str;
-		return replace(pos, count, sv.substr(pos2, count2));
-	}
-
-	template <typename InputIt, typename = std::enable_if_t<is_iterator_v<InputIt>>>
-	CXStr& replace(const_iterator first, const_iterator last,
-		InputIt first2, InputIt last2)
-	{
-		return replace_range(first, last, first2, last2, is_elem_cptr<decltype(first2)>());
-	}
-
-	CXStr& replace(size_type pos, size_type count, const char* cstr, size_type count2)
-	{
-		// replace [pos, pos + count) with [cstr, cstr + count2)
-		CheckOffset(pos);
-		count = ClampSuffixSize(pos, count);
-		char* insertAt = m_data->utf8 + pos;
-
-		if (count == count2) {
-			// no resize required
-			traits_type::move(insertAt, cstr, count2);
-			return *this;
-		}
-
-		const size_type oldSize = size();
-		const size_type suffixSize = oldSize - pos - count + 1;
-		const size_type newSize = oldSize - (count - count2);
-
-		if (count2 < count) {
-			// shrink
-			traits_type::move(insertAt, cstr, count2);
-			traits_type::move(insertAt + count2, insertAt + count, suffixSize);
-
-			m_data->length = static_cast<uint32_t>(newSize);
-			return *this;
-		}
-
-		// grow
-		Assure(newSize + 1, StringEncodingUtf8);
-		m_data->length = static_cast<uint32_t>(newSize);
-
-		traits_type::move(insertAt + count2, insertAt + count, suffixSize);
-		traits_type::move(insertAt, cstr, count2);
-
-		return *this;
-	}
-
-	CXStr& replace(const_iterator first, const_iterator last,
-		const char* cstr, size_type count2)
-	{
-		return replace(static_cast<size_type>(first - begin()), static_cast<size_type>(last - first), cstr, count2);
-	}
-
-	CXStr& replace(size_type pos, size_type count, const char* cstr)
-	{
-		return replace(pos, count, cstr, static_cast<size_type>(traits_type::length(cstr)));
-	}
-	CXStr& replace(const_iterator first, const_iterator last, const char* cstr)
-	{
-		return replace(static_cast<size_type>(first - begin()), static_cast<size_type>(last - first), cstr);
-	}
-
-	CXStr& replace(size_type pos, size_type count, size_type count2, char ch)
-	{
-		CheckOffset(pos);
-		count = ClampSuffixSize(pos, count);
-
-		const size_type oldSize = size();
-		size_type newSize = oldSize + count2 - count;
-
-		Assure(newSize + 1, StringEncodingUtf8);
-
-		if (count == count2)
-		{
-			// no resize, just assign
-			traits_type::assign(m_data->utf8 + pos, count, ch);
-			return *this;
-		}
-
-		m_data->length = static_cast<uint32_t>(newSize);
-		char* insertAt = m_data->utf8 + pos;
-
-		traits_type::move(insertAt + count2, insertAt + count, oldSize - count - pos + 1);
-		traits_type::assign(insertAt, count2, ch);
-
-		return *this;
-	}
-
-	CXStr& replace(const_iterator first, const_iterator last, size_type count2, char ch)
-	{
-		return replace(static_cast<size_type>(first - begin()), static_cast<size_type>(last - first), count2, ch);
-	}
-
-	CXStr& replace(const_iterator first, const_iterator last, std::initializer_list<char> ilist)
-	{
-		return replace(static_cast<size_type>(first - begin()), static_cast<size_type>(last - first),
-			ilist.begin(), static_cast<size_type>(ilist.size()));
-	}
-
-	template <typename T, typename = is_string_view_ish<T>>
-	CXStr& replace(size_type pos, size_type count, const T& t)
-	{
-		std::string_view sv = t;
-		return replace(pos, count, sv.data(), static_cast<size_type>(sv.size()));
-	}
-
-	template <typename T, typename = is_string_view_ish<T>>
-	CXStr& replace(const_iterator first, const_iterator last, const T& t)
-	{
-		return replace(static_cast<size_type>(first - begin()), static_cast<size_type>(last - first), t);
-	}
-
-	template <typename T, typename = is_string_view_ish<T>>
-	CXStr& replace(size_type pos, size_type count, const T& t, size_type pos2, size_type count2 = npos)
-	{
-		std::string_view sv = t;
-		return replace(pos, count, sv.substr(pos2, count2));
-	}
-
-	// Returns a substring [pos, pos + count). If the requested substring extends
-	// past the end of the string, or if count == npos, the returned substring is
-	// [pos, size()). Throws std::out_of_range if pos > size()
-	CXStr substr(size_type pos = 0, size_type count = npos) const
-	{
-		return CXStr(std::string_view{ *this }, pos, count);
-	}
-
-	// Copies a substring [pos, pos + count) to character string pointed to by dest.
-	// If the requested substring lasts past the end of the string, or if
-	// count == npos, the copied substring is [pos, size()). The resulting string
-	// is not null-terminated. if pos > size(), std::out_of_range is thrown.
-	size_type copy(char* dest, size_type count, size_type pos = 0) const
-	{
-		CheckOffset(pos);
-		count = ClampSuffixSize(pos, count);
-
-		if (size() > 0)
-		{
-			traits_type::copy(dest, m_data->utf8 + pos, count);
-		}
-
-		return count;
-	}
-
-	// Resizes the string to contain count characters. If the current size is less
-	// than count, additional characters are appended. If the current size is
-	// greater than count, the string is reduced to its first count elements. The
-	// first version initializes new characters to char(), the second version
-	// initializes new characters to ch.
-	void resize(size_type count)
-	{
-		resize(count, char());
-	}
-
-	void resize(size_type count, char ch)
-	{
-		if (count == size())
-			return;
-
-		if (count > size())
-		{
-			append(size() - count, ch);
-		}
-		else
-		{
-			// shrink
-			Assure(count + 1, StringEncodingUtf8);
-
-			m_data->utf8[m_data->length = static_cast<uint32_t>(count)] = char();
-		}
-	}
-
-	// Exchanges the contents of the string with those of the other. All iterators
-	// and references may be invalidated.
-	void swap(CXStr& other) noexcept
-	{
-		std::swap(m_data, other.m_data);
-	}
-
-	// ** EQ functions **
-
-	EStringEncoding GetEncoding() const
-	{
-		return m_data ? m_data->encoding : StringEncodingUtf8;
-	}
-
-	void SetEncoding(EStringEncoding encoding)
-	{
-		if (encoding == GetEncoding())
-			return;
-
-		if (m_data)
-			Assure(m_data->length + 1, encoding);
-		else
-			Assure(2, encoding);
-	}
-
-	void SetEncoding(EStringEncoding encoding) const // only const for hacky reasons
-	{
-		const_cast<CXStr*>(this)->SetEncoding(encoding);
-	}
-
-	int Compare(const CXStr& other, ECompareMode mode = CaseSensitive) const;
-	int CompareN(const CXStr& other, int len, ECompareMode mode = CaseSensitive) const;
-
-	size_t find(const CXStr& str, size_type pos = 0) const noexcept
-	{
-		std::string_view sv{ *this };
-		return sv.find(std::string_view{ str }, pos);
-	}
-
-	size_t find(const char* s, size_t pos, size_t count) const
-	{
-		std::string_view sv{ *this };
-		return sv.find(s, pos, count);
-	}
-
-	size_t find(const char* s, size_type pos = 0) const
-	{
-		std::string_view sv{ *this };
-		return sv.find(s, pos);
-	}
-
-	size_t find(char ch, size_type pos = 0) const noexcept
-	{
-		std::string_view sv{ *this };
-		return sv.find(ch, pos);
-	}
-
-	template <typename T, typename = is_string_view_ish<T>>
-	size_t find(const T& t, size_t pos = 0) const noexcept
-	{
-		std::string_view sv{ *this };
-		return sv.find(t, pos);
-	}
-
-	size_t rfind(const CXStr& str, size_type pos = 0) const noexcept
-	{
-		std::string_view sv{ *this };
-		return sv.rfind(std::string_view{ str }, pos);
-	}
-
-	size_t rfind(const char* s, size_t pos, size_t count) const
-	{
-		std::string_view sv{ *this };
-		return sv.rfind(s, pos, count);
-	}
-
-	size_t rfind(const char* s, size_type pos = 0) const
-	{
-		std::string_view sv{ *this };
-		return sv.rfind(s, pos);
-	}
-
-	size_t rfind(char ch, size_type pos = 0) const noexcept
-	{
-		std::string_view sv{ *this };
-		return sv.rfind(ch, pos);
-	}
-
-	template <typename T, typename = is_string_view_ish<T>>
-	size_t rfind(const T& t, size_t pos = 0) const noexcept
-	{
-		std::string_view sv{ *this };
-		return sv.rfind(t, pos);
-	}
-
-	int GetLength() const { return static_cast<int>(m_data ? m_data->length : 0); }
-	char GetChar(int pos) const;
-	char16_t GetUnicode(int pos) const;
-
-	CXStr Mid(int pos, int length) const
-	{
-		return substr(static_cast<size_t>(pos), static_cast<size_t>(length));
-	}
-
-	void Delete(int pos, int length);
-	void Insert(int pos, std::string_view sv) { insert(static_cast<size_t>(pos), sv); }
-
-	bool FindNext(char ch, int& pos) const
-	{
-		size_t foundPos = find(ch, static_cast<size_t>(pos));
-		if (foundPos == std::string_view::npos) return false;
-		pos = static_cast<int>(foundPos);
-		return true;
-	}
-
-	// Compatibility shim for old code that used PCXSTR and .Ptr
-	CXStr* _get_ptr() { return this; }
-
-		__declspec(property(get = _get_ptr)) CXStr* Ptr;
-
-private:
-	mutable CStrRep* m_data = nullptr;
-
-	template <typename Ptr>
-	CXStr& replace_range(const const_iterator first, const const_iterator last,
-		const Ptr first2, const Ptr last2, std::false_type)
-	{
-		// replace [first, last) with [first2, last2) using input_iterators
-		const CXStr right(first2, last2);
-		replace(first, last, right);
-		return *this;
-	}
-
-	template <typename Ptr>
-	CXStr& replace_range(const const_iterator first, const const_iterator last,
-		const Ptr first2, const Ptr last2, std::true_type)
-	{
-		// replace [first, last) with [first2, last2) using pointers
-		return replace(static_cast<size_type>(first - cbegin()), static_cast<size_type>(last - first),
-			first2, static_cast<size_type>(last2 - first2));
-	}
-
-	void AssureAccessible() const noexcept;
-	void Assure(size_type size, EStringEncoding encoding);
-	void AssureCopy();
-	CStrRep* AllocRepNoLock(size_type size, EStringEncoding encoding);
-	void FreeRep(CStrRep* rep);
-	void FreeRepNoLock(CStrRep* rep);
-
-	void CheckOffset(const size_type offset) const
-	{
-		if (size() < offset)
-		{
-			throw std::out_of_range("invalid string position");
-		}
-	}
-
-	void CheckOffsetExclusive(const size_type offset) const
-	{
-		if (size() <= offset)
-		{
-			throw std::out_of_range("invalid string position");
-		}
-	}
-
-	size_type ClampSuffixSize(const size_type offset, const size_type size) const noexcept
-	{
-		size_type mySize = static_cast<size_type>(length());
-		return std::min<size_type>(size, mySize - offset);
-	}
+        // We can only interact with utf8 based strings.
+        SetEncoding(StringEncodingUtf8);
+        return m_data->utf8[pos];
+    }
+
+    // Returns reference to the first character in the string. The behavior is
+    // undefined if empty() == true.
+    reference front()
+    {
+        return operator[](0);
+    }
+    const_reference front() const
+    {
+        return operator[](0);
+    }
+
+    // Returns reference to the last character in the string. The behavior is
+    // undefined if empty() == true.
+    reference back()
+    {
+        return operator[](size() - 1);
+    }
+    const_reference back() const
+    {
+        return operator[](size() - 1);
+    }
+
+    // Returns a pointer to the underlying array serving as character storage. The
+    // pointer is such that the range [data(), data() + size()) is valid and the
+    // values correspond to the values stored in the string.
+    // The returned array is null-terminated. That is, data() and c_str() perform
+    // the same function. If empty() returns true, the pointer points to a single
+    // null character.
+    pointer mutable_data() noexcept
+    {
+        AssureCopy();
+
+        SetEncoding(StringEncodingUtf8);
+        return m_data->utf8;
+    }
+
+    const_pointer data() const noexcept
+    {
+        if (!m_data)
+            return s_defaultEmptyString;
+
+        SetEncoding(StringEncodingUtf8);
+        return m_data->utf8;
+    }
+
+    // Returns a pointer to a null-terminated character array with data equivalent
+    // to those stored in the string. See data()
+    const_pointer c_str() const noexcept
+    {
+        return data();
+    }
+
+    // Returns a std::string_view, constructed as if by string_view(data(), size())
+    operator std::string_view() const noexcept
+    {
+        return std::string_view(data(), size());
+    }
+
+    // ** Iterators **
+
+    // Returns an iterator to the first character of the string.
+    iterator begin() noexcept
+    {
+        AssureAccessible();
+        return iterator(m_data->utf8);
+    }
+
+    const_iterator begin() const noexcept
+    {
+        AssureAccessible();
+        return const_iterator(m_data->utf8);
+    }
+
+    const_iterator cbegin() const noexcept
+    {
+        return begin();
+    }
+
+    // Returns an iterator to the character following the last character of the
+    // string. This character acts as a placeholder, attempting to access it
+    // results in undefined behavior.
+    iterator end() noexcept
+    {
+        AssureAccessible();
+        return iterator(m_data->utf8 + m_data->length);
+    }
+
+    const_iterator end() const noexcept
+    {
+        AssureAccessible();
+        return const_iterator(m_data->utf8 + m_data->length);
+    }
+
+    const_iterator cend() const noexcept
+    {
+        return end();
+    }
+
+    // Returns a reverse iterator to the first characer of the reversed string.
+    // It corresponds to the last character of the non-reversed string.
+    reverse_iterator rbegin() noexcept
+    {
+        return reverse_iterator{end()};
+    }
+
+    const_reverse_iterator rbegin() const noexcept
+    {
+        return const_reverse_iterator{end()};
+    }
+
+    const_reverse_iterator crbegin() const noexcept
+    {
+        return rbegin();
+    }
+
+    // Returns a reverse iterator to the character following the last character of
+    // the reversed string. It corresponds to the character preceding the first
+    // character of the non-reversed string. This character acts as a placeholder,
+    // attempting to access it results in undefined behavior.
+    reverse_iterator rend() noexcept
+    {
+        return reverse_iterator{begin()};
+    }
+
+    const_reverse_iterator rend() const noexcept
+    {
+        return const_reverse_iterator{begin()};
+    }
+
+    const_reverse_iterator crend() const noexcept
+    {
+        return rend();
+    }
+
+    // ** Capacity **
+
+    // Checks if the string has no characters
+    [[nodiscard]] bool empty() const noexcept
+    {
+        return length() == 0;
+    }
+
+    // Returns the number of char elements in the string.
+    size_type size() const noexcept
+    {
+        return m_data ? m_data->length : 0;
+    }
+    size_type length() const noexcept
+    {
+        return m_data ? m_data->length : 0;
+    }
+
+    // Informs a CXStr object of a planned change in size, so that it can manage
+    // the storage allocation appropriately. If new_cap is greater than the current
+    // capacity(), new storage is allocated, and capacity() is made equal or greater
+    // than new_cap.
+    // If new_cap is less than the current capacity(), there is no effect.
+    // A call to reserve with no argument is a non-binding shrink-to-fit request.
+    // After this call, capacity() has an unspecified value greater than or equal
+    // to size().
+    void reserve(size_type new_cap)
+    {
+        if (new_cap <= capacity())
+            return;
+
+        Assure(new_cap, GetEncoding());
+    }
+
+    void reserve() {}
+
+    // Returns the number of characters that the string has currentlly allocated
+    // space for.
+    size_type capacity() const noexcept
+    {
+        return m_data ? m_data->alloc : 0;
+    }
+
+    // ** Operations **
+
+    // Removes all characters from the string as if by executing erase(begin(), end()).
+    // All pointers, references, and iterators are invalidated.
+    void clear() noexcept
+    {
+        FreeRep(m_data);
+        m_data = nullptr;
+    }
+
+    // Inserts count copies of character ch at the position index
+    CXStr& insert(size_type index, size_type count, char ch)
+    {
+        CheckOffset(index);
+        Assure(size() + count + 1, StringEncodingUtf8);
+
+        size_t oldSize  = m_data->length;
+        m_data->length  = static_cast<uint32_t>(oldSize + count);
+        char* ptr       = m_data->utf8;
+        char* insertPos = ptr + index;
+
+        // Move suffix + null byte to end
+        traits_type::move(insertPos + count, insertPos, oldSize - index + 1);
+
+        // Fill hole
+        traits_type::assign(insertPos, count, ch);
+
+        return *this;
+    }
+
+    // Inserts null-terminated character string pointed to by s at the position index.
+    // The length of the string is determined by the first null character using
+    // Traits::length(s).
+    CXStr& insert(size_type index, const char* s)
+    {
+        return insert(index, s, (size_type) traits_type::length(s));
+    }
+
+    // Inserts the characters in the range [s, s + count) at the position index. The
+    // range can contain null characters.
+    CXStr& insert(size_type index, const char* s, size_type count)
+    {
+        CheckOffset(index);
+        Assure(size() + count + 1, StringEncodingUtf8);
+
+        size_t oldSize  = m_data->length;
+        m_data->length  = static_cast<uint32_t>(oldSize + count);
+        char* ptr       = m_data->utf8;
+        char* insertPos = ptr + index;
+
+        // handle case where s may be aliasing data that is shifting.
+        size_t shifted;
+        if (s + count <= insertPos || s > ptr + oldSize)
+        {
+            // inserted content is before the shifted region or doesn't alias
+            shifted = count;
+        }
+        else if (insertPos <= s)
+        {
+            // all of [s, s + count) shifts
+            shifted = 0;
+        }
+        else
+        {
+            // [s, s + count) contains insertPos, so only part after insertPos shifts.
+            shifted = static_cast<size_t>(insertPos - s);
+        }
+
+        traits_type::move(insertPos + count, insertPos, oldSize - index + 1);  // move suffix + null
+        traits_type::copy(insertPos, s, shifted);
+        traits_type::copy(insertPos + shifted, s + count + shifted, count - shifted);
+
+        return *this;
+    }
+
+    // Inserts string str at the position index.
+    CXStr& insert(size_type index, const CXStr& str)
+    {
+        if (str.empty())
+            return *this;
+
+        return insert(index, str.data(), str.size());
+    }
+
+    // Inserts a string, obtained by str.substr(index_str, count) at the position index
+    CXStr& insert(size_type index, const CXStr& str, size_type index_str, size_type count = npos)
+    {
+        std::string_view sv = str;
+        return insert(index, sv.substr(index_str, count));
+    }
+
+    // Inserts a character ch before the character pointed by pos.
+    iterator insert(const_iterator pos, char ch)
+    {
+        const difference_type offset = pos - begin();
+        insert(static_cast<size_type>(offset), 1, ch);
+        return begin() + offset;
+    }
+
+    // Inserts count copies of character ch before the element (if any) pointed by pos.
+    iterator insert(const_iterator pos, size_type count, char ch)
+    {
+        const difference_type offset = pos - begin();
+        insert(static_cast<size_type>(offset), count, ch);
+        return begin() + offset;
+    }
+
+    // Inserts characters from the range [first, last) before the element (if any)
+    // pointed by pos. This overload does not participate in overload resolution if
+    // InputIt does not satisfy LegacyInputIterator.
+    template <typename InputIt, typename = std::enable_if_t<is_iterator_v<InputIt>>>
+    iterator insert(const_iterator pos, InputIt first, InputIt last)
+    {
+        const difference_type offset = pos - begin();
+        replace(pos, pos, first, last);
+        return begin() + offset;
+    }
+
+    // Inserts elements from initializer_list ilist before the element (if any) pointed
+    // by pos.
+    iterator insert(const_iterator pos, std::initializer_list<char> ilist)
+    {
+        const difference_type offset = pos - begin();
+        insert(static_cast<size_type>(offset), ilist.begin(), static_cast<size_type>(ilist.size()));
+        return begin() + offset;
+    }
+
+    // Implicitly converts t to a string_view sv as if by std::string_view sv = t;,
+    // then inserts the elements from sv before the element (if any) pointed by pos,
+    // as if by insert(pos, sv.data(), sv.size()). This overload only participates in
+    // overload resolution if t is convertible to string_view but not const char*.
+    template <typename T, typename = is_string_view_ish<T>>
+    CXStr& insert(size_type pos, const T& t)
+    {
+        std::string_view sv = t;
+        return insert(pos, sv.data(), static_cast<size_type>(sv.size()));
+    }
+
+    // Implicitly converts t to a string_view sv as if by std::string_view sv = t;,
+    // then inserts, before the element (if any) pointed by pos, the characters from
+    // the subview [index_str, index_str + count) of sv. If the requested subview lasts
+    // past the end of sv, or if count == npos, the resulting subview is [index_str,
+    // sv.size()). If index_str > sv.size(), or if index > size(), std::out_of_range is
+    // thrown. This overload only participates in overload resolution if t is
+    // convertible to string_view but not const char*.
+    template <typename T, typename = is_string_view_ish<T>>
+    CXStr& insert(size_type pos, const T& t, size_type index_str, size_type count = npos)
+    {
+        std::string_view sv = t;
+        return insert(pos, sv.substr(index_str, count));
+    }
+
+    // Erases [index, ...) from the string
+    CXStr& erase(size_type index = 0)
+    {
+        if (index == 0)
+            clear();
+        else
+        {
+            CheckOffset(index);
+            Assure(size() + 1, StringEncodingUtf8);
+
+            traits_type::assign(m_data->utf8[m_data->length = static_cast<uint32_t>(index)],
+                                value_type());
+        }
+
+        return *this;
+    }
+
+    // Removes min(count(), size() - index) characters from the string, starting at index.
+    CXStr& erase(size_type index, size_type count)
+    {
+        CheckOffset(index);
+        Assure(size() + 1, StringEncodingUtf8);
+
+        count                   = ClampSuffixSize(index, count);
+        const size_type oldSize = m_data->length;
+        char* ptr               = m_data->utf8;
+        char* eraseAt           = ptr + index;
+        const size_type newSize = oldSize - count;
+        m_data->length          = static_cast<uint32_t>(newSize);
+        traits_type::move(
+            eraseAt, eraseAt + count, newSize - index + 1);  // move suffix and null up
+
+        return *this;
+    }
+
+    // Removes the character at the specified position from the string
+    iterator erase(const_iterator position)
+    {
+        const difference_type offset = position - begin();
+        erase(static_cast<size_type>(offset), 1);
+        return begin() + offset;
+    }
+
+    // Removes the characters in the range [first, last) from the string.
+    iterator erase(const_iterator first, const_iterator last)
+    {
+        const difference_type offset = first - begin();
+        erase(static_cast<size_type>(offset), static_cast<size_type>(last - first));
+        return begin() + offset;
+    }
+
+    // Appends the given character ch to the end of the string.
+    void push_back(char ch)
+    {
+        Assure(size() + 2, StringEncodingUtf8);
+
+        size_type oldSize = m_data->length++;
+        traits_type::assign(m_data->utf8[oldSize], ch);
+        traits_type::assign(m_data->utf8[oldSize + 1], value_type());
+    }
+
+    // Removes the last character frmo the string. Equivalent to erase(end() - 1). The
+    // behavior is undefined if the string is empty.
+    void pop_back()
+    {
+        erase(size() - 1);
+    }
+
+    // Appends count copies of character ch
+    CXStr& append(size_type count, char ch)
+    {
+        Assure(size() + count + 1, StringEncodingUtf8);
+
+        const size_type oldSize = m_data->length;
+        m_data->length          = static_cast<uint32_t>(oldSize + count);
+
+        traits_type::assign(m_data->utf8 + oldSize, count, ch);
+        traits_type::assign(m_data->utf8[oldSize + count], value_type());
+
+        return *this;
+    }
+
+    // Appends string str
+    CXStr& append(const CXStr& str)
+    {
+        return append(str.data(), str.size());
+    }
+
+    // Appends a substring [pos, pos + count) of str. If the requested substring lasts past
+    // the end of the string, or if count == npos, the appended substring is [pos, size()). If
+    // pos > str.size(), std::out_of_range is thrown.
+    CXStr& append(const CXStr& str, size_type pos, size_type count = npos)
+    {
+        std::string_view sv = str;
+        return append(sv.substr(pos, count));
+    }
+
+    // Appends characters in the range [s, s + count). This range can contain null characters.
+    CXStr& append(const char* s, size_type count)
+    {
+        Assure(size() + count + 1, StringEncodingUtf8);
+
+        const size_type oldSize = m_data->length;
+        m_data->length          = static_cast<uint32_t>(oldSize + count);
+
+        traits_type::move(m_data->utf8 + oldSize, s, count);
+        traits_type::assign(m_data->utf8[oldSize + count], value_type());
+
+        return *this;
+    }
+
+    // Appends the null-terminated character string pointed to by s. The length of the string is
+    // determined by the first null character.
+    CXStr& append(const char* s)
+    {
+        return append(s, static_cast<size_type>(traits_type::length(s)));
+    }
+
+    // Appends characters in the range [first, last).
+    template <typename InputIt, typename = std::enable_if_t<is_iterator_v<InputIt>>>
+    CXStr& append(InputIt first, InputIt last)
+    {
+        return replace(end(), end(), first, last);
+    }
+
+    // Appends characters from the initializer list ilist.
+    CXStr& append(std::initializer_list<char> ilist)
+    {
+        return append(ilist.begin(), static_cast<size_type>(ilist.size()));
+    }
+
+    // Implicitly converts to to a string view sv as if by string_view sv = t;, then appends all
+    // characters from sv as if by append(sv.data(), sv.size()). This only participates in overload
+    // resolution if t is convertible to string_view but not const char*.
+    template <typename T, typename = is_string_view_ish<T>>
+    CXStr& append(const T& t)
+    {
+        std::string_view sv = t;
+        return append(sv.data(), static_cast<size_type>(sv.size()));
+    }
+
+    // Implicitly converts t to a string view sv as if by string_view sv = t;, then appends the
+    // characters from the subview [pos, pos + count) of sv. If the requested subview extends past
+    // the end of sv,or if count == npos, the appended subview is [pos, sv.size()). If pos >=
+    // sv.size(), std::out_of_range is thrown. This overload only participates in overload
+    // resolution if t is convertible to string view but not const char*.
+    template <typename T, typename = is_string_view_ish<T>>
+    CXStr& append(const T& t, size_type pos, size_type count = npos)
+    {
+        std::string_view sv = t;
+        return append(sv.substr(pos, count));
+    }
+
+    // Appends string str
+    CXStr& operator+=(const CXStr& str)
+    {
+        return append(str);
+    }
+
+    // Appends character ch
+    CXStr& operator+=(char ch)
+    {
+        push_back(ch);
+        return *this;
+    }
+
+    // Appends the null-terminated character string pointed to by s
+    CXStr& operator+=(const char* s)
+    {
+        return append(s);
+    }
+
+    // Appends characters in the initializer list ilist
+    CXStr& operator+=(std::initializer_list<char> ilist)
+    {
+        return append(ilist.begin(), static_cast<size_type>(ilist.size()));
+    }
+
+    // Appends characters in the string_view-like type t
+    template <typename T, typename = is_string_view_ish<T>>
+    CXStr& operator+=(const T& t)
+    {
+        return append(t);
+    }
+
+    // Compares this string to str.
+    int compare(const CXStr& str) const noexcept
+    {
+        return std::string_view{*this}.compare(std::string_view{str});
+    }
+
+    // Compares a [pos1, pos1+count1) substring of this string to str
+    int compare(size_type pos1, size_type count1, const CXStr& str) const
+    {
+        return std::string_view{*this}.compare(pos1, count1, std::string_view{str});
+    }
+
+    // Compares a [pos1, pos1+count1) substring of this string to a substring [pos2, pos2+count2)
+    // of str. If either string is count > size() - pos, the substring is [pos, size()).
+    int compare(size_type pos1,
+                size_type count1,
+                const CXStr& str,
+                size_type pos2,
+                size_type count2 = npos) const
+    {
+        return std::string_view{*this}.compare(pos1, count1, std::string_view{str}, pos2, count2);
+    }
+
+    int compare(const char* s) const
+    {
+        return std::string_view{*this}.compare(s);
+    }
+
+    int compare(size_type pos1, size_type count1, const char* s) const
+    {
+        return std::string_view{*this}.compare(pos1, count1, s);
+    }
+
+    int compare(size_type pos1, size_type count1, const char* s, size_type count2) const
+    {
+        return std::string_view{*this}.compare(pos1, count1, s, count2);
+    }
+
+    template <typename T, typename = is_string_view_ish<T>>
+    int compare(const T& t) const noexcept
+    {
+        return std::string_view{*this}.compare(t);
+    }
+
+    template <typename T>
+    int compare(size_type pos1, size_type count1, const T& t) const
+    {
+        return std::string_view{*this}.compare(pos1, count1, t);
+    }
+
+    template <typename T>
+    int compare(
+        size_type pos1, size_type count1, const T& t, size_type pos2, size_type count2 = npos) const
+    {
+        return std::string_view{*this}.compare(pos1, count1, 2, pos2, count2);
+    }
+
+    // Checks if the string begins with the given prefix.
+    bool starts_with(std::string_view x) const noexcept
+    {
+        return size() >= x.size() && std::string_view{*this}.compare(0, x.size(), x) == 0;
+    }
+
+    bool starts_with(char x) const noexcept
+    {
+        return size() >= 1 && at(0) == x;
+    }
+
+    bool starts_with(const char* x) const
+    {
+        return starts_with(std::string_view{x});
+    }
+
+    // Checks if the string ends with the given suffix.
+    bool ends_with(std::string_view x) const noexcept
+    {
+        return size() >= x.size() &&
+               std::string_view{*this}.compare(size() - x.size(), x.size(), x) == 0;
+    }
+
+    bool ends_with(char x) const noexcept
+    {
+        return size() >= 1 && at(size() - 1) == x;
+    }
+
+    bool ends_with(const char* x) const
+    {
+        return ends_with(std::string_view{x});
+    }
+
+    // Replaces the part of the string indicated by either [pos, pos + count) or
+    // [first, last) with a new string.
+    CXStr& replace(size_type pos, size_type count, const CXStr& str)
+    {
+        std::string_view sv = str;
+        return replace(pos, count, sv.data(), static_cast<size_type>(sv.size()));
+    }
+
+    CXStr& replace(const_iterator first, const_iterator last, const CXStr& str)
+    {
+        return replace(
+            static_cast<size_type>(first - begin()), static_cast<size_type>(last - first), str);
+    }
+
+    CXStr& replace(
+        size_type pos, size_type count, const CXStr& str, size_type pos2, size_type count2 = npos)
+    {
+        std::string_view sv = str;
+        return replace(pos, count, sv.substr(pos2, count2));
+    }
+
+    template <typename InputIt, typename = std::enable_if_t<is_iterator_v<InputIt>>>
+    CXStr& replace(const_iterator first, const_iterator last, InputIt first2, InputIt last2)
+    {
+        return replace_range(first, last, first2, last2, is_elem_cptr<decltype(first2)>());
+    }
+
+    CXStr& replace(size_type pos, size_type count, const char* cstr, size_type count2)
+    {
+        // replace [pos, pos + count) with [cstr, cstr + count2)
+        CheckOffset(pos);
+        count          = ClampSuffixSize(pos, count);
+        char* insertAt = m_data->utf8 + pos;
+
+        if (count == count2)
+        {
+            // no resize required
+            traits_type::move(insertAt, cstr, count2);
+            return *this;
+        }
+
+        const size_type oldSize    = size();
+        const size_type suffixSize = oldSize - pos - count + 1;
+        const size_type newSize    = oldSize - (count - count2);
+
+        if (count2 < count)
+        {
+            // shrink
+            traits_type::move(insertAt, cstr, count2);
+            traits_type::move(insertAt + count2, insertAt + count, suffixSize);
+
+            m_data->length = static_cast<uint32_t>(newSize);
+            return *this;
+        }
+
+        // grow
+        Assure(newSize + 1, StringEncodingUtf8);
+        m_data->length = static_cast<uint32_t>(newSize);
+
+        traits_type::move(insertAt + count2, insertAt + count, suffixSize);
+        traits_type::move(insertAt, cstr, count2);
+
+        return *this;
+    }
+
+    CXStr& replace(const_iterator first, const_iterator last, const char* cstr, size_type count2)
+    {
+        return replace(static_cast<size_type>(first - begin()),
+                       static_cast<size_type>(last - first),
+                       cstr,
+                       count2);
+    }
+
+    CXStr& replace(size_type pos, size_type count, const char* cstr)
+    {
+        return replace(pos, count, cstr, static_cast<size_type>(traits_type::length(cstr)));
+    }
+    CXStr& replace(const_iterator first, const_iterator last, const char* cstr)
+    {
+        return replace(
+            static_cast<size_type>(first - begin()), static_cast<size_type>(last - first), cstr);
+    }
+
+    CXStr& replace(size_type pos, size_type count, size_type count2, char ch)
+    {
+        CheckOffset(pos);
+        count = ClampSuffixSize(pos, count);
+
+        const size_type oldSize = size();
+        size_type newSize       = oldSize + count2 - count;
+
+        Assure(newSize + 1, StringEncodingUtf8);
+
+        if (count == count2)
+        {
+            // no resize, just assign
+            traits_type::assign(m_data->utf8 + pos, count, ch);
+            return *this;
+        }
+
+        m_data->length = static_cast<uint32_t>(newSize);
+        char* insertAt = m_data->utf8 + pos;
+
+        traits_type::move(insertAt + count2, insertAt + count, oldSize - count - pos + 1);
+        traits_type::assign(insertAt, count2, ch);
+
+        return *this;
+    }
+
+    CXStr& replace(const_iterator first, const_iterator last, size_type count2, char ch)
+    {
+        return replace(static_cast<size_type>(first - begin()),
+                       static_cast<size_type>(last - first),
+                       count2,
+                       ch);
+    }
+
+    CXStr& replace(const_iterator first, const_iterator last, std::initializer_list<char> ilist)
+    {
+        return replace(static_cast<size_type>(first - begin()),
+                       static_cast<size_type>(last - first),
+                       ilist.begin(),
+                       static_cast<size_type>(ilist.size()));
+    }
+
+    template <typename T, typename = is_string_view_ish<T>>
+    CXStr& replace(size_type pos, size_type count, const T& t)
+    {
+        std::string_view sv = t;
+        return replace(pos, count, sv.data(), static_cast<size_type>(sv.size()));
+    }
+
+    template <typename T, typename = is_string_view_ish<T>>
+    CXStr& replace(const_iterator first, const_iterator last, const T& t)
+    {
+        return replace(
+            static_cast<size_type>(first - begin()), static_cast<size_type>(last - first), t);
+    }
+
+    template <typename T, typename = is_string_view_ish<T>>
+    CXStr& replace(
+        size_type pos, size_type count, const T& t, size_type pos2, size_type count2 = npos)
+    {
+        std::string_view sv = t;
+        return replace(pos, count, sv.substr(pos2, count2));
+    }
+
+    // Returns a substring [pos, pos + count). If the requested substring extends
+    // past the end of the string, or if count == npos, the returned substring is
+    // [pos, size()). Throws std::out_of_range if pos > size()
+    CXStr substr(size_type pos = 0, size_type count = npos) const
+    {
+        return CXStr(std::string_view{*this}, pos, count);
+    }
+
+    // Copies a substring [pos, pos + count) to character string pointed to by dest.
+    // If the requested substring lasts past the end of the string, or if
+    // count == npos, the copied substring is [pos, size()). The resulting string
+    // is not null-terminated. if pos > size(), std::out_of_range is thrown.
+    size_type copy(char* dest, size_type count, size_type pos = 0) const
+    {
+        CheckOffset(pos);
+        count = ClampSuffixSize(pos, count);
+
+        if (size() > 0)
+        {
+            traits_type::copy(dest, m_data->utf8 + pos, count);
+        }
+
+        return count;
+    }
+
+    // Resizes the string to contain count characters. If the current size is less
+    // than count, additional characters are appended. If the current size is
+    // greater than count, the string is reduced to its first count elements. The
+    // first version initializes new characters to char(), the second version
+    // initializes new characters to ch.
+    void resize(size_type count)
+    {
+        resize(count, char());
+    }
+
+    void resize(size_type count, char ch)
+    {
+        if (count == size())
+            return;
+
+        if (count > size())
+        {
+            append(size() - count, ch);
+        }
+        else
+        {
+            // shrink
+            Assure(count + 1, StringEncodingUtf8);
+
+            m_data->utf8[m_data->length = static_cast<uint32_t>(count)] = char();
+        }
+    }
+
+    // Exchanges the contents of the string with those of the other. All iterators
+    // and references may be invalidated.
+    void swap(CXStr& other) noexcept
+    {
+        std::swap(m_data, other.m_data);
+    }
+
+    // ** EQ functions **
+
+    EStringEncoding GetEncoding() const
+    {
+        return m_data ? m_data->encoding : StringEncodingUtf8;
+    }
+
+    void SetEncoding(EStringEncoding encoding)
+    {
+        if (encoding == GetEncoding())
+            return;
+
+        if (m_data)
+            Assure(m_data->length + 1, encoding);
+        else
+            Assure(2, encoding);
+    }
+
+    void SetEncoding(EStringEncoding encoding) const  // only const for hacky reasons
+    {
+        const_cast<CXStr*>(this)->SetEncoding(encoding);
+    }
+
+    int Compare(const CXStr& other, ECompareMode mode = CaseSensitive) const;
+    int CompareN(const CXStr& other, int len, ECompareMode mode = CaseSensitive) const;
+
+    size_t find(const CXStr& str, size_type pos = 0) const noexcept
+    {
+        std::string_view sv{*this};
+        return sv.find(std::string_view{str}, pos);
+    }
+
+    size_t find(const char* s, size_t pos, size_t count) const
+    {
+        std::string_view sv{*this};
+        return sv.find(s, pos, count);
+    }
+
+    size_t find(const char* s, size_type pos = 0) const
+    {
+        std::string_view sv{*this};
+        return sv.find(s, pos);
+    }
+
+    size_t find(char ch, size_type pos = 0) const noexcept
+    {
+        std::string_view sv{*this};
+        return sv.find(ch, pos);
+    }
+
+    template <typename T, typename = is_string_view_ish<T>>
+    size_t find(const T& t, size_t pos = 0) const noexcept
+    {
+        std::string_view sv{*this};
+        return sv.find(t, pos);
+    }
+
+    size_t rfind(const CXStr& str, size_type pos = 0) const noexcept
+    {
+        std::string_view sv{*this};
+        return sv.rfind(std::string_view{str}, pos);
+    }
+
+    size_t rfind(const char* s, size_t pos, size_t count) const
+    {
+        std::string_view sv{*this};
+        return sv.rfind(s, pos, count);
+    }
+
+    size_t rfind(const char* s, size_type pos = 0) const
+    {
+        std::string_view sv{*this};
+        return sv.rfind(s, pos);
+    }
+
+    size_t rfind(char ch, size_type pos = 0) const noexcept
+    {
+        std::string_view sv{*this};
+        return sv.rfind(ch, pos);
+    }
+
+    template <typename T, typename = is_string_view_ish<T>>
+    size_t rfind(const T& t, size_t pos = 0) const noexcept
+    {
+        std::string_view sv{*this};
+        return sv.rfind(t, pos);
+    }
+
+    int GetLength() const
+    {
+        return static_cast<int>(m_data ? m_data->length : 0);
+    }
+    char GetChar(int pos) const;
+    char16_t GetUnicode(int pos) const;
+
+    CXStr Mid(int pos, int length) const
+    {
+        return substr(static_cast<size_t>(pos), static_cast<size_t>(length));
+    }
+
+    void Delete(int pos, int length);
+    void Insert(int pos, std::string_view sv)
+    {
+        insert(static_cast<size_t>(pos), sv);
+    }
+
+    bool FindNext(char ch, int& pos) const
+    {
+        size_t foundPos = find(ch, static_cast<size_t>(pos));
+        if (foundPos == std::string_view::npos)
+            return false;
+        pos = static_cast<int>(foundPos);
+        return true;
+    }
+
+    // Compatibility shim for old code that used PCXSTR and .Ptr
+    CXStr* _get_ptr()
+    {
+        return this;
+    }
+
+    __declspec(property(get = _get_ptr)) CXStr* Ptr;
+
+   private:
+    mutable CStrRep* m_data = nullptr;
+
+    template <typename Ptr>
+    CXStr& replace_range(const const_iterator first,
+                         const const_iterator last,
+                         const Ptr first2,
+                         const Ptr last2,
+                         std::false_type)
+    {
+        // replace [first, last) with [first2, last2) using input_iterators
+        const CXStr right(first2, last2);
+        replace(first, last, right);
+        return *this;
+    }
+
+    template <typename Ptr>
+    CXStr& replace_range(const const_iterator first,
+                         const const_iterator last,
+                         const Ptr first2,
+                         const Ptr last2,
+                         std::true_type)
+    {
+        // replace [first, last) with [first2, last2) using pointers
+        return replace(static_cast<size_type>(first - cbegin()),
+                       static_cast<size_type>(last - first),
+                       first2,
+                       static_cast<size_type>(last2 - first2));
+    }
+
+    void AssureAccessible() const noexcept;
+    void Assure(size_type size, EStringEncoding encoding);
+    void AssureCopy();
+    CStrRep* AllocRepNoLock(size_type size, EStringEncoding encoding);
+    void FreeRep(CStrRep* rep);
+    void FreeRepNoLock(CStrRep* rep);
+
+    void CheckOffset(const size_type offset) const
+    {
+        if (size() < offset)
+        {
+            throw std::out_of_range("invalid string position");
+        }
+    }
+
+    void CheckOffsetExclusive(const size_type offset) const
+    {
+        if (size() <= offset)
+        {
+            throw std::out_of_range("invalid string position");
+        }
+    }
+
+    size_type ClampSuffixSize(const size_type offset, const size_type size) const noexcept
+    {
+        size_type mySize = static_cast<size_type>(length());
+        return std::min<size_type>(size, mySize - offset);
+    }
 };
 
-[[nodiscard]] inline CXStr::ConstIterator operator+(typename CXStr::ConstIterator::difference_type offset,
-	CXStr::ConstIterator next)
+[[nodiscard]] inline CXStr::ConstIterator
+operator+(typename CXStr::ConstIterator::difference_type offset, CXStr::ConstIterator next)
 {
-	return next += offset;
+    return next += offset;
 }
 
-[[nodiscard]] inline CXStr::Iterator operator+(typename CXStr::Iterator::difference_type offset,
-	CXStr::Iterator next)
+[[nodiscard]] inline CXStr::Iterator
+operator+(typename CXStr::Iterator::difference_type offset, CXStr::Iterator next)
 {
-	return next += offset;
+    return next += offset;
 }
 
-inline void swap(CXStr& lhs, CXStr& rhs) noexcept
+inline void
+swap(CXStr& lhs, CXStr& rhs) noexcept
 {
-	lhs.swap(rhs);
+    lhs.swap(rhs);
 }
 
 // Comparison operator implementations. We provide all comparison operations
@@ -1656,587 +1714,634 @@ inline void swap(CXStr& lhs, CXStr& rhs) noexcept
 // without conversion.
 
 // Check for equality (comparison == 0)
-[[nodiscard]] inline bool operator==(const CXStr& lhs, const CXStr& rhs)
+[[nodiscard]] inline bool
+operator==(const CXStr& lhs, const CXStr& rhs)
 {
-	return lhs.compare(rhs) == 0;
+    return lhs.compare(rhs) == 0;
 }
 
-[[nodiscard]] inline bool operator==(const CXStr& lhs, const char* rhs)
+[[nodiscard]] inline bool
+operator==(const CXStr& lhs, const char* rhs)
 {
-	return lhs.compare(rhs) == 0;
+    return lhs.compare(rhs) == 0;
 }
 
-[[nodiscard]] inline bool operator==(const char* lhs, const CXStr& rhs)
+[[nodiscard]] inline bool
+operator==(const char* lhs, const CXStr& rhs)
 {
-	return rhs.compare(lhs) == 0;
+    return rhs.compare(lhs) == 0;
 }
 
-[[nodiscard]] inline bool operator==(const CXStr& lhs, const std::string& rhs)
+[[nodiscard]] inline bool
+operator==(const CXStr& lhs, const std::string& rhs)
 {
-	return lhs.compare(std::string_view{ rhs }) == 0;
+    return lhs.compare(std::string_view{rhs}) == 0;
 }
 
-[[nodiscard]] inline bool operator==(const std::string& lhs, const CXStr& rhs)
+[[nodiscard]] inline bool
+operator==(const std::string& lhs, const CXStr& rhs)
 {
-	return rhs.compare(std::string_view{ lhs }) == 0;
+    return rhs.compare(std::string_view{lhs}) == 0;
 }
 
 // Check for inequality
-[[nodiscard]] inline bool operator!=(const CXStr& lhs, const CXStr& rhs)
+[[nodiscard]] inline bool
+operator!=(const CXStr& lhs, const CXStr& rhs)
 {
-	return lhs.compare(rhs) != 0;
+    return lhs.compare(rhs) != 0;
 }
 
-[[nodiscard]] inline bool operator!=(const CXStr& lhs, const char* rhs)
+[[nodiscard]] inline bool
+operator!=(const CXStr& lhs, const char* rhs)
 {
-	return lhs.compare(rhs) != 0;
+    return lhs.compare(rhs) != 0;
 }
 
-[[nodiscard]] inline bool operator!=(const char* lhs, const CXStr& rhs)
+[[nodiscard]] inline bool
+operator!=(const char* lhs, const CXStr& rhs)
 {
-	return rhs.compare(lhs) != 0;
+    return rhs.compare(lhs) != 0;
 }
 
-[[nodiscard]] inline bool operator!=(const CXStr& lhs, const std::string& rhs)
+[[nodiscard]] inline bool
+operator!=(const CXStr& lhs, const std::string& rhs)
 {
-	return lhs.compare(std::string_view{ rhs }) != 0;
+    return lhs.compare(std::string_view{rhs}) != 0;
 }
 
-[[nodiscard]] inline bool operator!=(const std::string& lhs, const CXStr& rhs)
+[[nodiscard]] inline bool
+operator!=(const std::string& lhs, const CXStr& rhs)
 {
-	return rhs.compare(std::string_view{ lhs }) != 0;
+    return rhs.compare(std::string_view{lhs}) != 0;
 }
 
 // Check for less-than
-[[nodiscard]] inline bool operator<(const CXStr& lhs, const CXStr& rhs)
+[[nodiscard]] inline bool
+operator<(const CXStr& lhs, const CXStr& rhs)
 {
-	return lhs.compare(rhs) < 0;
+    return lhs.compare(rhs) < 0;
 }
 
-[[nodiscard]] inline bool operator<(const CXStr& lhs, const char* rhs)
+[[nodiscard]] inline bool
+operator<(const CXStr& lhs, const char* rhs)
 {
-	return lhs.compare(rhs) < 0;
+    return lhs.compare(rhs) < 0;
 }
 
-[[nodiscard]] inline bool operator<(const char* lhs, const CXStr& rhs)
+[[nodiscard]] inline bool
+operator<(const char* lhs, const CXStr& rhs)
 {
-	return !(rhs.compare(lhs) < 0);
+    return !(rhs.compare(lhs) < 0);
 }
 
 // Check for less-than-or-equal
-[[nodiscard]] inline bool operator<=(const CXStr& lhs, const CXStr& rhs)
+[[nodiscard]] inline bool
+operator<=(const CXStr& lhs, const CXStr& rhs)
 {
-	return lhs.compare(rhs) <= 0;
+    return lhs.compare(rhs) <= 0;
 }
 
-[[nodiscard]] inline bool operator<=(const CXStr& lhs, const char* rhs)
+[[nodiscard]] inline bool
+operator<=(const CXStr& lhs, const char* rhs)
 {
-	return lhs.compare(rhs) <= 0;
+    return lhs.compare(rhs) <= 0;
 }
 
-[[nodiscard]] inline bool operator<=(const char* lhs, const CXStr& rhs)
+[[nodiscard]] inline bool
+operator<=(const char* lhs, const CXStr& rhs)
 {
-	return !(rhs.compare(lhs) <= 0);
+    return !(rhs.compare(lhs) <= 0);
 }
 
 // Check for greater-than
-[[nodiscard]] inline bool operator>(const CXStr& lhs, const CXStr& rhs)
+[[nodiscard]] inline bool
+operator>(const CXStr& lhs, const CXStr& rhs)
 {
-	return lhs.compare(rhs) > 0;
+    return lhs.compare(rhs) > 0;
 }
 
-[[nodiscard]] inline bool operator>(const CXStr& lhs, const char* rhs)
+[[nodiscard]] inline bool
+operator>(const CXStr& lhs, const char* rhs)
 {
-	return lhs.compare(rhs) > 0;
+    return lhs.compare(rhs) > 0;
 }
 
-[[nodiscard]] inline bool operator>(const char* lhs, const CXStr& rhs)
+[[nodiscard]] inline bool
+operator>(const char* lhs, const CXStr& rhs)
 {
-	return !(rhs.compare(lhs) > 0);
+    return !(rhs.compare(lhs) > 0);
 }
 
 // Check for greater-than-or-equal
-[[nodiscard]] inline bool operator>=(const CXStr& lhs, const CXStr& rhs)
+[[nodiscard]] inline bool
+operator>=(const CXStr& lhs, const CXStr& rhs)
 {
-	return lhs.compare(rhs) >= 0;
+    return lhs.compare(rhs) >= 0;
 }
 
-[[nodiscard]] inline bool operator>=(const CXStr& lhs, const char* rhs)
+[[nodiscard]] inline bool
+operator>=(const CXStr& lhs, const char* rhs)
 {
-	return lhs.compare(rhs) >= 0;
+    return lhs.compare(rhs) >= 0;
 }
 
-[[nodiscard]] inline bool operator>=(const char* lhs, const CXStr& rhs)
+[[nodiscard]] inline bool
+operator>=(const char* lhs, const CXStr& rhs)
 {
-	return !(rhs.compare(lhs) >= 0);
+    return !(rhs.compare(lhs) >= 0);
 }
 
 // Concatenation
-[[nodiscard]] inline CXStr operator+(const CXStr& lhs, const CXStr& rhs)
+[[nodiscard]] inline CXStr
+operator+(const CXStr& lhs, const CXStr& rhs)
 {
-	CXStr result;
-	result.reserve(lhs.size() + rhs.size());
-	result += lhs;
-	result += rhs;
-	return result;
+    CXStr result;
+    result.reserve(lhs.size() + rhs.size());
+    result += lhs;
+    result += rhs;
+    return result;
 }
 
-[[nodiscard]] inline CXStr operator+(const CXStr& lhs, const char* rhs)
+[[nodiscard]] inline CXStr
+operator+(const CXStr& lhs, const char* rhs)
 {
-	CXStr result;
-	result.reserve(static_cast<CXStr::size_type>(lhs.size() + CXStr::traits_type::length(rhs)));
-	result += lhs;
-	result += rhs;
-	return result;
+    CXStr result;
+    result.reserve(static_cast<CXStr::size_type>(lhs.size() + CXStr::traits_type::length(rhs)));
+    result += lhs;
+    result += rhs;
+    return result;
 }
 
-[[nodiscard]] inline CXStr operator+(const CXStr& lhs, char rhs)
+[[nodiscard]] inline CXStr
+operator+(const CXStr& lhs, char rhs)
 {
-	CXStr result;
-	result.reserve(static_cast<CXStr::size_type>(lhs.size() + 1));
-	result += lhs;
-	result += rhs;
-	return result;
+    CXStr result;
+    result.reserve(static_cast<CXStr::size_type>(lhs.size() + 1));
+    result += lhs;
+    result += rhs;
+    return result;
 }
 
-[[nodiscard]] inline CXStr operator+(const char* lhs, const CXStr& rhs)
+[[nodiscard]] inline CXStr
+operator+(const char* lhs, const CXStr& rhs)
 {
-	CXStr result;
-	result.reserve(static_cast<CXStr::size_type>(CXStr::traits_type::length(lhs) + rhs.size()));
-	result += lhs;
-	result += rhs;
-	return result;
+    CXStr result;
+    result.reserve(static_cast<CXStr::size_type>(CXStr::traits_type::length(lhs) + rhs.size()));
+    result += lhs;
+    result += rhs;
+    return result;
 }
 
-[[nodiscard]] inline CXStr operator+(char lhs, const CXStr& rhs)
+[[nodiscard]] inline CXStr
+operator+(char lhs, const CXStr& rhs)
 {
-	CXStr result;
-	result.reserve(static_cast <CXStr::size_type>(1 + rhs.size()));
-	result += lhs;
-	result += rhs;
-	return result;
+    CXStr result;
+    result.reserve(static_cast<CXStr::size_type>(1 + rhs.size()));
+    result += lhs;
+    result += rhs;
+    return result;
 }
 
-[[nodiscard]] inline CXStr operator+(CXStr&& lhs, CXStr&& rhs)
+[[nodiscard]] inline CXStr
+operator+(CXStr&& lhs, CXStr&& rhs)
 {
-	if (rhs.size() <= lhs.capacity() - lhs.size()
-		|| rhs.capacity() - rhs.size() < lhs.size())
-		return std::move(lhs.append(rhs));
-	else
-		return std::move(rhs.insert(0, lhs));
+    if (rhs.size() <= lhs.capacity() - lhs.size() || rhs.capacity() - rhs.size() < lhs.size())
+        return std::move(lhs.append(rhs));
+    else
+        return std::move(rhs.insert(0, lhs));
 }
 
-[[nodiscard]] inline CXStr operator+(CXStr&& lhs, const CXStr& rhs)
+[[nodiscard]] inline CXStr
+operator+(CXStr&& lhs, const CXStr& rhs)
 {
-	return std::move(lhs.append(rhs));
+    return std::move(lhs.append(rhs));
 }
 
-[[nodiscard]] inline CXStr operator+(CXStr&& lhs, const char* rhs)
+[[nodiscard]] inline CXStr
+operator+(CXStr&& lhs, const char* rhs)
 {
-	return std::move(lhs.append(rhs));
+    return std::move(lhs.append(rhs));
 }
 
-[[nodiscard]] inline CXStr operator+(CXStr&& lhs, char rhs)
+[[nodiscard]] inline CXStr
+operator+(CXStr&& lhs, char rhs)
 {
-	lhs.push_back(rhs);
-	return std::move(lhs);
+    lhs.push_back(rhs);
+    return std::move(lhs);
 }
 
-[[nodiscard]] inline CXStr operator+(const CXStr& lhs, CXStr&& rhs)
+[[nodiscard]] inline CXStr
+operator+(const CXStr& lhs, CXStr&& rhs)
 {
-	return std::move(rhs.insert(0, lhs));
+    return std::move(rhs.insert(0, lhs));
 }
 
-[[nodiscard]] inline CXStr operator+(const char* lhs, CXStr&& rhs)
+[[nodiscard]] inline CXStr
+operator+(const char* lhs, CXStr&& rhs)
 {
-	return std::move(rhs.insert(0, lhs));
+    return std::move(rhs.insert(0, lhs));
 }
 
-[[nodiscard]] inline CXStr operator+(char lhs, CXStr&& rhs)
+[[nodiscard]] inline CXStr
+operator+(char lhs, CXStr&& rhs)
 {
-	return std::move(rhs.insert(static_cast<size_t>(0), static_cast<size_t>(1), lhs));
+    return std::move(rhs.insert(static_cast<size_t>(0), static_cast<size_t>(1), lhs));
 }
-
-
-
-
 
 // This is the list of free lists. Each CXStr has a pointer
 // to it, so the easiest way to find it is to interact with
 // an existing CXStr.
 CXFreeList* gFreeLists = nullptr;
 
-namespace internal {
-	size_t gStrRepAllocations = 0;
-	size_t gStrRepLiveObjects = 0;
-}
-
-void InitializeCXStr()
+namespace internal
 {
-	
-}
+size_t gStrRepAllocations = 0;
+size_t gStrRepLiveObjects = 0;
+}  // namespace internal
 
-void ShutdownCXStr()
+void
+InitializeCXStr()
 {
 }
 
-CXFreeList* internal::GetCXFreeList()
+void
+ShutdownCXStr()
 {
-	return gFreeLists;
 }
 
+CXFreeList*
+internal::GetCXFreeList()
+{
+    return gFreeLists;
+}
 
 // Unicode / Utf8 conversion functions
-size_t CalcUnicodeToUtf8Length(wchar_t* input)
+size_t
+CalcUnicodeToUtf8Length(wchar_t* input)
 {
-	int len = 0;
-	for (const wchar_t* p = input; *p != 0; ++p)
-	{
-		if (*p < 0x80)
-			len++;
-		else if (*p < 0x800)
-			len += 2;
-		else
-			len += 3;
-	}
+    int len = 0;
+    for (const wchar_t* p = input; *p != 0; ++p)
+    {
+        if (*p < 0x80)
+            len++;
+        else if (*p < 0x800)
+            len += 2;
+        else
+            len += 3;
+    }
 
-	return len;
+    return len;
 }
 
-size_t UnicodeToUtf8(wchar_t* unicode, char* buffer, size_t size)
+size_t
+UnicodeToUtf8(wchar_t* unicode, char* buffer, size_t size)
 {
-	if (!unicode) return -2;
-	if (!buffer) return -2;
-	if (size == 0) return -2;
+    if (!unicode)
+        return -2;
+    if (!buffer)
+        return -2;
+    if (size == 0)
+        return -2;
 
-	const wchar_t* src = unicode;
-	char* dest = buffer;
-	char* last = buffer + size - 1;
+    const wchar_t* src = unicode;
+    char* dest         = buffer;
+    char* last         = buffer + size - 1;
 
-	while (true)
-	{
-		if (dest > last)
-		{
-			break;
-		}
+    while (true)
+    {
+        if (dest > last)
+        {
+            break;
+        }
 
-		if (*src == 0)
-		{
-			*dest++ = 0;
-			if (dest > last)
-				break;
+        if (*src == 0)
+        {
+            *dest++ = 0;
+            if (dest > last)
+                break;
 
-			return dest - buffer - 1;
-		}
+            return dest - buffer - 1;
+        }
 
-		if (*src < 0x80) // 1 byte value
-		{
-			*dest++ = (char)*src;
-			++src;
-		}
-		else if (*src < 0x800) // 2 bytes
-		{
-			*dest++ = 0xc0 | (0x1f & static_cast<char>(*src >> 6));
-			*dest++ = 0x80 | (0x3f & static_cast<char>(*src));
-			src++;
-		}
-		else // 3 bytes
-		{
-			*dest++ = 0xe0 | (0x0f & static_cast<char>(*src >> 12));
-			*dest++ = 0x80 | (0x3f & static_cast<char>(*src >> 6));
-			*dest++ = 0x80 | (0x3f & static_cast<char>(*src));
-			src++;
-		}
-	}
+        if (*src < 0x80)  // 1 byte value
+        {
+            *dest++ = (char) *src;
+            ++src;
+        }
+        else if (*src < 0x800)  // 2 bytes
+        {
+            *dest++ = 0xc0 | (0x1f & static_cast<char>(*src >> 6));
+            *dest++ = 0x80 | (0x3f & static_cast<char>(*src));
+            src++;
+        }
+        else  // 3 bytes
+        {
+            *dest++ = 0xe0 | (0x0f & static_cast<char>(*src >> 12));
+            *dest++ = 0x80 | (0x3f & static_cast<char>(*src >> 6));
+            *dest++ = 0x80 | (0x3f & static_cast<char>(*src));
+            src++;
+        }
+    }
 
-	return -1;
+    return -1;
 }
 
-size_t Utf8ToUnicode(char* utf8, wchar_t* buffer, size_t size)
+size_t
+Utf8ToUnicode(char* utf8, wchar_t* buffer, size_t size)
 {
-	return 0;
+    return 0;
 }
 
 // This is to ensure we have a CStrRep block to access. it allows us to
 // ensure we have an allocated buffer that we can dereference. This
 // function does not force a copy.
-void CXStr::AssureAccessible() const noexcept
+void
+CXStr::AssureAccessible() const noexcept
 {
-	if (m_data)
-		return;
+    if (m_data)
+        return;
 
-	const_cast<CXStr*>(this)->AssureCopy();
+    const_cast<CXStr*>(this)->AssureCopy();
 }
 
 // This is called whenever a modification is about to be made
 // to "assure" we have our own copy. This implements the copy-on-write
 // behavior of CXStr.
-void CXStr::AssureCopy()
+void
+CXStr::AssureCopy()
 {
-	Assure(size() + 1, GetEncoding());
+    Assure(size() + 1, GetEncoding());
 }
 
-void CXStr::Assure(size_type size, EStringEncoding encoding)
+void
+CXStr::Assure(size_type size, EStringEncoding encoding)
 {
-	if (encoding == StringEncodingUtf16)
-	{
-		size *= 2;
-	}
+    if (encoding == StringEncodingUtf16)
+    {
+        size *= 2;
+    }
 
-	// Check the conditions for creating a new CStrRep. If the desired
-	// encoding is different, if the size is larger, or if the CStrRep is
-	// shared (refCount > 1) then we need to duplicate. This implements the
-	// copy-on-write.
-	if (m_data == nullptr)
-	{
+    // Check the conditions for creating a new CStrRep. If the desired
+    // encoding is different, if the size is larger, or if the CStrRep is
+    // shared (refCount > 1) then we need to duplicate. This implements the
+    // copy-on-write.
+    if (m_data == nullptr)
+    {
+        m_data = AllocRepNoLock(size, encoding);
+    }
+    else if (m_data->refCount > 1 || m_data->encoding != encoding || m_data->alloc < size)
+    {
+        // don't try to shrink the buffer.
+        if (size < m_data->alloc)
+            size = m_data->alloc;
 
-		m_data = AllocRepNoLock(size, encoding);
-	}
-	else if (m_data->refCount > 1
-		|| m_data->encoding != encoding
-		|| m_data->alloc < size)
-	{
+        // If conerting from unicode to utf8 we must calculate
+        // the actual byte length.
+        if (m_data->encoding == StringEncodingUtf16 && encoding == StringEncodingUtf8)
+        {
+            size_type utf8Length = (size_type) CalcUnicodeToUtf8Length(m_data->unicode) + 1;
 
-		// don't try to shrink the buffer.
-		if (size < m_data->alloc)
-			size = m_data->alloc;
+            if (size < utf8Length)
+                size = utf8Length;
+        }
 
-		// If conerting from unicode to utf8 we must calculate
-		// the actual byte length.
-		if (m_data->encoding == StringEncodingUtf16
-			&& encoding == StringEncodingUtf8)
-		{
-			size_type utf8Length = (size_type)CalcUnicodeToUtf8Length(m_data->unicode) + 1;
+        CStrRep* rep = AllocRepNoLock(size, encoding);
 
-			if (size < utf8Length)
-				size = utf8Length;
-		}
+        // Copy data from old rep to new
+        if (rep->encoding == StringEncodingUtf8)
+        {
+            if (m_data->encoding == StringEncodingUtf8)
+            {
+                // utf8 -> utf8
+                memcpy(rep->utf8, m_data->utf8, m_data->length + 1);
+                rep->length = m_data->length;
+            }
+            else if (m_data->encoding == StringEncodingUtf16)
+            {
+                // utf16 -> utf8
+                rep->length =
+                    static_cast<uint32_t>(UnicodeToUtf8(m_data->unicode, rep->utf8, rep->alloc));
+            }
+        }
+        else if (rep->encoding == StringEncodingUtf16)
+        {
+            if (m_data->encoding == StringEncodingUtf8)
+            {
+                // utf8 -> utf16
+                rep->length =
+                    static_cast<uint32_t>(Utf8ToUnicode(m_data->utf8, rep->unicode, rep->alloc));
+            }
+            else
+            {
+                // utf16 -> utf16
+                memcpy(rep->unicode, m_data->unicode, (m_data->length + 1) * 2);
+                rep->length = m_data->length;
+            }
+        }
 
-		CStrRep* rep = AllocRepNoLock(size, encoding);
+        // delete old rep
+        FreeRepNoLock(m_data);
 
-		// Copy data from old rep to new
-		if (rep->encoding == StringEncodingUtf8)
-		{
-			if (m_data->encoding == StringEncodingUtf8)
-			{
-				// utf8 -> utf8
-				memcpy(rep->utf8, m_data->utf8, m_data->length + 1);
-				rep->length = m_data->length;
-			}
-			else if (m_data->encoding == StringEncodingUtf16)
-			{
-				// utf16 -> utf8
-				rep->length = static_cast<uint32_t>(UnicodeToUtf8(m_data->unicode, rep->utf8, rep->alloc));
-			}
-		}
-		else if (rep->encoding == StringEncodingUtf16)
-		{
-			if (m_data->encoding == StringEncodingUtf8)
-			{
-				// utf8 -> utf16
-				rep->length = static_cast<uint32_t>(Utf8ToUnicode(m_data->utf8, rep->unicode, rep->alloc));
-			}
-			else
-			{
-				// utf16 -> utf16
-				memcpy(rep->unicode, m_data->unicode, (m_data->length + 1) * 2);
-				rep->length = m_data->length;
-			}
-		}
-
-		// delete old rep
-		FreeRepNoLock(m_data);
-
-		m_data = rep;
-	}
+        m_data = rep;
+    }
 }
 
-CStrRep* CXStr::AllocRepNoLock(size_type size, EStringEncoding encoding)
+CStrRep*
+CXStr::AllocRepNoLock(size_type size, EStringEncoding encoding)
 {
-	size_type i = 0;
-	CXFreeList* freeLists = gFreeLists;
+    size_type i           = 0;
+    CXFreeList* freeLists = gFreeLists;
 
-	while (freeLists[i].blockSize > 0)
-	{
-		CXFreeList& freeList = freeLists[i];
+    while (freeLists[i].blockSize > 0)
+    {
+        CXFreeList& freeList = freeLists[i];
 
-		if (size <= freeList.blockSize)
-		{
-			if (freeList.repList == nullptr)
-			{
-				// didn't find a free block, we'll make one with
-				// the matching block size. When it is released it will
-				// be returned to this free list.
-				size = freeList.blockSize;
-				break;
-			}
+        if (size <= freeList.blockSize)
+        {
+            if (freeList.repList == nullptr)
+            {
+                // didn't find a free block, we'll make one with
+                // the matching block size. When it is released it will
+                // be returned to this free list.
+                size = freeList.blockSize;
+                break;
+            }
 
-			// found a free block, take it from the list
-			CStrRep* rep = freeList.repList;
-			freeList.repList = freeList.repList->next;
+            // found a free block, take it from the list
+            CStrRep* rep     = freeList.repList;
+            freeList.repList = freeList.repList->next;
 
-			rep->next = nullptr;
-			rep->length = 0;
-			rep->encoding = encoding;
-			rep->refCount = 1;
-			rep->freeList = gFreeLists;
-			rep->alloc = freeList.blockSize;
+            rep->next     = nullptr;
+            rep->length   = 0;
+            rep->encoding = encoding;
+            rep->refCount = 1;
+            rep->freeList = gFreeLists;
+            rep->alloc    = freeList.blockSize;
 
-			return rep;
-		}
+            return rep;
+        }
 
-		++i;
-	}
+        ++i;
+    }
 
-	if (freeLists[i].blockSize == 0)
-	{
-		// If we made it here it means there isn't a block thats large
-		// enough to hold our string. We won't use a free list for it.
+    if (freeLists[i].blockSize == 0)
+    {
+        // If we made it here it means there isn't a block thats large
+        // enough to hold our string. We won't use a free list for it.
 
-		// make the size a multiple of 8192
-		size = ((((size + 0x1FFF) >> 31) & 0x1FFF) + size + 0x1FFF) & 0xFFFFE000;
-	}
+        // make the size a multiple of 8192
+        size = ((((size + 0x1FFF) >> 31) & 0x1FFF) + size + 0x1FFF) & 0xFFFFE000;
+    }
 
-	// Calculate size of block. Size of the non-text data plus desired size.
-	size_t newSize = sizeof(CStrRep) - sizeof(CStrRep::utf8) + size;
-	CStrRep* rep = (CStrRep*)eqlib::eqAlloc(newSize);
-	memset(rep, 0, newSize);
+    // Calculate size of block. Size of the non-text data plus desired size.
+    size_t newSize = sizeof(CStrRep) - sizeof(CStrRep::utf8) + size;
+    CStrRep* rep   = (CStrRep*) eqlib::eqAlloc(newSize);
+    memset(rep, 0, newSize);
 
-	++internal::gStrRepAllocations;
-	++internal::gStrRepLiveObjects;
+    ++internal::gStrRepAllocations;
+    ++internal::gStrRepLiveObjects;
 
-	rep->next = nullptr;
-	rep->length = 0;
-	rep->alloc = static_cast<uint32_t>(size);
-	rep->encoding = encoding;
-	rep->refCount = 1;
-	rep->freeList = gFreeLists;
+    rep->next     = nullptr;
+    rep->length   = 0;
+    rep->alloc    = static_cast<uint32_t>(size);
+    rep->encoding = encoding;
+    rep->refCount = 1;
+    rep->freeList = gFreeLists;
 
-	return rep;
+    return rep;
 }
 
-void CXStr::FreeRep(CStrRep* rep)
+void
+CXStr::FreeRep(CStrRep* rep)
 {
-	if (!rep) return;
+    if (!rep)
+        return;
 
-
-	FreeRepNoLock(rep);
+    FreeRepNoLock(rep);
 }
 
-void CXStr::FreeRepNoLock(CStrRep* rep)
+void
+CXStr::FreeRepNoLock(CStrRep* rep)
 {
-	if (!rep) return;
+    if (!rep)
+        return;
 
-	// only perform a free when the ref count reaches exactly zero
-	if (--rep->refCount != 0) return;
+    // only perform a free when the ref count reaches exactly zero
+    if (--rep->refCount != 0)
+        return;
 
-	CXFreeList* freeLists = rep->freeList;
-	size_t i = 0;
+    CXFreeList* freeLists = rep->freeList;
+    size_t i              = 0;
 
-	while (freeLists[i].blockSize > 0)
-	{
-		if (rep->alloc == freeLists[i].blockSize)
-		{
-			rep->next = freeLists[i].repList;
+    while (freeLists[i].blockSize > 0)
+    {
+        if (rep->alloc == freeLists[i].blockSize)
+        {
+            rep->next = freeLists[i].repList;
 
-			freeLists[i].repList = rep;
-			return;
-		}
+            freeLists[i].repList = rep;
+            return;
+        }
 
-		++i;
-	}
+        ++i;
+    }
 
-	--internal::gStrRepLiveObjects;
+    --internal::gStrRepLiveObjects;
 
-	eqlib::eqFree(rep);
+    eqlib::eqFree(rep);
 }
 
-int CXStr::Compare(const CXStr& other, ECompareMode mode /*= CaseSensitive*/) const
+int
+CXStr::Compare(const CXStr& other, ECompareMode mode /*= CaseSensitive*/) const
 {
-	// Ensure both strings have utf8 encoding
-	SetEncoding(StringEncodingUtf8);
-	other.SetEncoding(StringEncodingUtf8);
+    // Ensure both strings have utf8 encoding
+    SetEncoding(StringEncodingUtf8);
+    other.SetEncoding(StringEncodingUtf8);
 
-	switch (mode)
-	{
-	case CaseInsensitive:
-		return _stricmp(c_str(), other.c_str());
+    switch (mode)
+    {
+        case CaseInsensitive:
+            return _stricmp(c_str(), other.c_str());
 
-	case CaseSensitive:
-		return strcmp(c_str(), other.c_str());
-	}
+        case CaseSensitive:
+            return strcmp(c_str(), other.c_str());
+    }
 
-	return -1;
+    return -1;
 }
 
-int CXStr::CompareN(const CXStr& other, int len, ECompareMode mode /*= CaseSensitive*/) const
+int
+CXStr::CompareN(const CXStr& other, int len, ECompareMode mode /*= CaseSensitive*/) const
 {
-	// not optimized at all.
-	CXStr s1 = substr(0, len);
-	CXStr s2 = other.substr(0, len);
+    // not optimized at all.
+    CXStr s1 = substr(0, len);
+    CXStr s2 = other.substr(0, len);
 
-	return s1.Compare(s2, mode);
+    return s1.Compare(s2, mode);
 }
 
-char CXStr::GetChar(int pos) const
+char
+CXStr::GetChar(int pos) const
 {
-	if (m_data == nullptr)
-		return 0;
+    if (m_data == nullptr)
+        return 0;
 
-	if (pos < 0 || pos >= GetLength())
-		return 0;
+    if (pos < 0 || pos >= GetLength())
+        return 0;
 
-	if (m_data->encoding == StringEncodingUtf8)
-		return m_data->utf8[pos];
+    if (m_data->encoding == StringEncodingUtf8)
+        return m_data->utf8[pos];
 
-	if (m_data->encoding == StringEncodingUtf16)
-	{
-		char16_t c = m_data->unicode[pos];
+    if (m_data->encoding == StringEncodingUtf16)
+    {
+        char16_t c = m_data->unicode[pos];
 
-		if (c & 0x80)
-			return -1;
-		return static_cast<char>(c);
-	}
+        if (c & 0x80)
+            return -1;
+        return static_cast<char>(c);
+    }
 
-	return 0;
+    return 0;
 }
 
-char16_t CXStr::GetUnicode(int pos) const
+char16_t
+CXStr::GetUnicode(int pos) const
 {
-	if (m_data == nullptr)
-		return 0;
+    if (m_data == nullptr)
+        return 0;
 
-	if (pos < 0 || pos >= GetLength())
-		return 0;
+    if (pos < 0 || pos >= GetLength())
+        return 0;
 
-	if (m_data->encoding == StringEncodingUtf16)
-		return m_data->unicode[pos];
+    if (m_data->encoding == StringEncodingUtf16)
+        return m_data->unicode[pos];
 
-	if (m_data->encoding == StringEncodingUtf8)
-	{
-		char c = m_data->utf8[pos];
-		if (c & 0x80)
-			return -1;
+    if (m_data->encoding == StringEncodingUtf8)
+    {
+        char c = m_data->utf8[pos];
+        if (c & 0x80)
+            return -1;
 
-		return static_cast<char16_t>(c);
-	}
+        return static_cast<char16_t>(c);
+    }
 
-	return 0;
+    return 0;
 }
 
-void CXStr::Delete(int pos, int count)
+void
+CXStr::Delete(int pos, int count)
 {
-	if (!m_data || pos >= GetLength())
-		return;
+    if (!m_data || pos >= GetLength())
+        return;
 
-	// Only supporting Utf8 currently
-	Assure(length(), StringEncodingUtf8);
+    // Only supporting Utf8 currently
+    Assure(length(), StringEncodingUtf8);
 
-	if (!m_data)
-		return;
+    if (!m_data)
+        return;
 
-	count = std::min<int>(count, GetLength() - pos);
+    count = std::min<int>(count, GetLength() - pos);
 
-	traits_type::move(m_data->utf8 + pos, m_data->utf8 + pos + count, count);
-	m_data->length -= count;
+    traits_type::move(m_data->utf8 + pos, m_data->utf8 + pos + count, count);
+    m_data->length -= count;
 }

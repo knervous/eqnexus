@@ -1,5 +1,7 @@
 export module zipextractor;
 
+import utility;
+
 #include <minizip/unzip.h>
 import <string>;
 import <vector>;
@@ -11,144 +13,142 @@ import <chrono>;
 
 namespace fs = std::filesystem;
 
-constexpr uint32_t MOD_ADLER = 65521;
+export namespace zipextractor
+{
 
-unsigned long adler32(unsigned long adler, const uint8_t* buf, uint32_t len) {
-    uLong A = adler & 0xFFFF;
-    uLong B = (adler >> 16) & 0xFFFF;
-
-    for (uInt i = 0; i < len; ++i) {
-        A = (A + buf[i]) % MOD_ADLER;
-        B = (B + A) % MOD_ADLER;
+bool
+ProcessZipFileWithCRC32(
+    const std::string& zipPath,
+    std::function<void(const std::string& filePath, const std::string& crc32Hash)> callback)
+{
+    unzFile zipfile = unzOpen(zipPath.c_str());
+    if (!zipfile)
+    {
+        std::cerr << "Failed to open ZIP file: " << zipPath << std::endl;
+        return false;
     }
 
-    return (B << 16) | A;
-}
-
-export namespace zipextractor {
-    unsigned long ComputeFileAdler32(const fs::path& filePath) {
-        std::ifstream file(filePath, std::ios::binary);
-        if (!file.is_open()) {
-            std::cerr << "Failed to open file: " << filePath << std::endl;
-            return 0;
-        }
-
-        unsigned long adler = adler32(0L, Z_NULL, 0);
-        char buffer[4096];
-        while (file.read(buffer, sizeof(buffer))) {
-            adler = adler32(adler, reinterpret_cast<const Bytef*>(buffer), file.gcount());
-        }
-        adler = adler32(adler, reinterpret_cast<const Bytef*>(buffer), file.gcount());
-
-        return adler;
+    if (unzGoToFirstFile(zipfile) != UNZ_OK)
+    {
+        std::cerr << "Failed to go to the first file in ZIP" << std::endl;
+        unzClose(zipfile);
+        return false;
     }
 
-    unsigned long ComputeFileLastModifiedTime(const fs::path& filePath) {
-        try {
-            auto ftime = fs::last_write_time(filePath);
-            auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(ftime - fs::file_time_type::clock::now() + std::chrono::system_clock::now());
-            return static_cast<unsigned long>(std::chrono::system_clock::to_time_t(sctp));
-        }
-        catch (const fs::filesystem_error& e) {
-            std::cerr << "Error retrieving last modified time for " << filePath << ": " << e.what() << std::endl;
-            return 0;
-        }
-    }
-
-    unsigned long ComputeDirectoryTimestampChecksum(const fs::path& directoryPath) {
-        unsigned long cumulativeChecksum = 0;
-
-        for (const auto& entry : fs::directory_iterator(directoryPath)) {
-            if (entry.is_regular_file()) {
-                const std::string fileName = entry.path().filename().string();
-
-                // Skip specific files if needed
-                if (fileName == "version.txt" || fileName == "hash.txt") {
-                    continue;
-                }
-
-                unsigned long fileChecksum = ComputeFileLastModifiedTime(entry.path());
-                cumulativeChecksum ^= fileChecksum;
-            }
-        }
-
-        return cumulativeChecksum;
-    }
-
-
-    unsigned long ComputeDirectoryChecksum(const fs::path& directoryPath, unsigned long initialChecksum = 1) {
-        unsigned long cumulativeChecksum = initialChecksum;
-
-        for (const auto& entry : fs::directory_iterator(directoryPath)) {
-            if (entry.is_regular_file()) {
-                const std::string fileName = entry.path().filename().string();
-
-                if (fileName == "version.txt" || fileName == "hash.txt") {
-                    continue;
-                }
-
-                unsigned long fileChecksum = ComputeFileAdler32(entry.path());
-                if (fileChecksum != 0) {
-                    cumulativeChecksum ^= fileChecksum;
-                }
-            }
-        }
-
-        return cumulativeChecksum;
-    }
-    bool ExtractAllFilesFromZip(const std::string& zipPath, std::function<void(const std::string&)> fn) {
-        unzFile zipfile = unzOpen(zipPath.c_str());
-        if (!zipfile) {
-            std::cerr << "Failed to open ZIP file: " << zipPath << std::endl;
-            return false;
-        }
-
-        fs::path output_dir = fs::path(zipPath).parent_path();
-
-        if (unzGoToFirstFile(zipfile) != UNZ_OK) {
-            std::cerr << "Failed to go to first file in ZIP" << std::endl;
+    do
+    {
+        char filename[256];
+        unz_file_info file_info;
+        if (unzGetCurrentFileInfo(
+                zipfile, &file_info, filename, sizeof(filename), nullptr, 0, nullptr, 0) != UNZ_OK)
+        {
+            std::cerr << "Failed to get file info" << std::endl;
             unzClose(zipfile);
             return false;
         }
 
-        do {
-            char filename[256];
-            unz_file_info file_info;
-            if (unzGetCurrentFileInfo(zipfile, &file_info, filename, sizeof(filename), nullptr, 0, nullptr, 0) != UNZ_OK) {
-                std::cerr << "Failed to get file info" << std::endl;
-                unzClose(zipfile);
-                return false;
-            }
+        if (unzOpenCurrentFile(zipfile) != UNZ_OK)
+        {
+            std::cerr << "Failed to open file in ZIP" << std::endl;
+            unzClose(zipfile);
+            return false;
+        }
 
-            if (unzOpenCurrentFile(zipfile) != UNZ_OK) {
-                std::cerr << "Failed to open file in ZIP" << std::endl;
-                unzClose(zipfile);
-                return false;
-            }
-            fn(filename);
-            fs::path output_path = output_dir / filename;
-            fs::create_directories(output_path.parent_path());
+        // Initialize CRC for this file
+        uint32_t crc = 0xFFFFFFFF;
 
-            std::ofstream out_file(output_path, std::ios::binary);
-            if (!out_file.is_open()) {
-                std::cerr << "Failed to create output file: " << output_path << std::endl;
-                unzCloseCurrentFile(zipfile);
-                unzClose(zipfile);
-                return false;
-            }
+        // Read the file in chunks and update CRC
+        char buffer[4096];
+        int bytesRead;
+        while ((bytesRead = unzReadCurrentFile(zipfile, buffer, sizeof(buffer))) > 0)
+        {
+            crc = util::UpdateCRC32(crc, buffer, bytesRead);
+        }
 
-            char buffer[4096];
-            int bytes_read;
-            while ((bytes_read = unzReadCurrentFile(zipfile, buffer, sizeof(buffer))) > 0) {
-                out_file.write(buffer, bytes_read);
-            }
+        unzCloseCurrentFile(zipfile);
 
-            out_file.close();
-            unzCloseCurrentFile(zipfile);
+        if (bytesRead < 0)
+        {
+            std::cerr << "Error reading file in ZIP: " << filename << std::endl;
+            unzClose(zipfile);
+            return false;
+        }
 
-        } while (unzGoToNextFile(zipfile) == UNZ_OK);
+        // Finalize and convert the CRC to hexadecimal string
+        std::string crc32Hex = util::CRC32ToHex(crc);
 
-        unzClose(zipfile);
-        return true;
-    }
+        // Call the callback with the file name and CRC32 hash
+        callback(filename, crc32Hex);
+
+    } while (unzGoToNextFile(zipfile) == UNZ_OK);
+
+    unzClose(zipfile);
+    return true;
 }
+
+bool
+ExtractAllFilesFromZip(const std::string& zipPath, std::function<void(const std::string&)> fn)
+{
+    unzFile zipfile = unzOpen(zipPath.c_str());
+    if (!zipfile)
+    {
+        std::cerr << "Failed to open ZIP file: " << zipPath << std::endl;
+        return false;
+    }
+
+    fs::path output_dir = fs::path(zipPath).parent_path();
+
+    if (unzGoToFirstFile(zipfile) != UNZ_OK)
+    {
+        std::cerr << "Failed to go to first file in ZIP" << std::endl;
+        unzClose(zipfile);
+        return false;
+    }
+
+    do
+    {
+        char filename[256];
+        unz_file_info file_info;
+        if (unzGetCurrentFileInfo(
+                zipfile, &file_info, filename, sizeof(filename), nullptr, 0, nullptr, 0) != UNZ_OK)
+        {
+            std::cerr << "Failed to get file info" << std::endl;
+            unzClose(zipfile);
+            return false;
+        }
+
+        if (unzOpenCurrentFile(zipfile) != UNZ_OK)
+        {
+            std::cerr << "Failed to open file in ZIP" << std::endl;
+            unzClose(zipfile);
+            return false;
+        }
+        fn(filename);
+        fs::path output_path = output_dir / filename;
+        fs::create_directories(output_path.parent_path());
+
+        std::ofstream out_file(output_path, std::ios::binary);
+        if (!out_file.is_open())
+        {
+            std::cerr << "Failed to create output file: " << output_path << std::endl;
+            unzCloseCurrentFile(zipfile);
+            unzClose(zipfile);
+            return false;
+        }
+
+        char buffer[4096];
+        int bytes_read;
+        while ((bytes_read = unzReadCurrentFile(zipfile, buffer, sizeof(buffer))) > 0)
+        {
+            out_file.write(buffer, bytes_read);
+        }
+
+        out_file.close();
+        unzCloseCurrentFile(zipfile);
+
+    } while (unzGoToNextFile(zipfile) == UNZ_OK);
+
+    unzClose(zipfile);
+    return true;
+}
+}  // namespace zipextractor

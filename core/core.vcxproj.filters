@@ -125,6 +125,9 @@
     <ClCompile Include="nk.ixx">
       <Filter>Modules</Filter>
     </ClCompile>
+    <ClCompile Include="server_info.ixx">
+      <Filter>Modules</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="NexusCore.rc">

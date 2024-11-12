@@ -5,9 +5,10 @@ import <numeric>;
 import <cassert>;
 
 #pragma warning(push)
-#pragma warning(disable : 4312) // Disable warnings for reinterpret cast from pointer to byte
+#pragma warning(disable : 4312)  // Disable warnings for reinterpret cast from pointer to byte
 
-inline bool DataCompare(const uint8_t* pData, const uint8_t* bMask, const char* szMask)
+inline bool
+DataCompare(const uint8_t* pData, const uint8_t* bMask, const char* szMask)
 {
     for (; *szMask; ++szMask, ++pData, ++bMask)
     {
@@ -17,7 +18,8 @@ inline bool DataCompare(const uint8_t* pData, const uint8_t* bMask, const char* 
     return (*szMask) == 0;
 }
 
-inline uintptr_t FindPattern(uintptr_t dwAddress, uintptr_t dwLen, const uint8_t* bPattern, const char* szMask)
+inline uintptr_t
+FindPattern(uintptr_t dwAddress, uintptr_t dwLen, const uint8_t* bPattern, const char* szMask)
 {
     for (uintptr_t i = 0; i < dwLen; i++)
     {
@@ -28,7 +30,8 @@ inline uintptr_t FindPattern(uintptr_t dwAddress, uintptr_t dwLen, const uint8_t
     return 0;
 }
 
-inline uintptr_t GetDWordAt(uintptr_t address, uintptr_t numBytes)
+inline uintptr_t
+GetDWordAt(uintptr_t address, uintptr_t numBytes)
 {
     if (address)
     {
@@ -39,7 +42,8 @@ inline uintptr_t GetDWordAt(uintptr_t address, uintptr_t numBytes)
     return 0;
 }
 
-export uintptr_t GetFunctionAddressAt(uintptr_t address, uintptr_t addressOffset, uintptr_t numBytes)
+export uintptr_t
+GetFunctionAddressAt(uintptr_t address, uintptr_t addressOffset, uintptr_t numBytes)
 {
     if (address)
     {
@@ -56,9 +60,8 @@ export template <typename... Args>
 struct ForeignPointer_StorageBase;
 
 export template <typename T>
-struct ForeignPointer_StorageBase<T>
-{
-    operator T* () const noexcept
+struct ForeignPointer_StorageBase<T> {
+    operator T*() const noexcept
     {
         return get();
     }
@@ -81,20 +84,19 @@ struct ForeignPointer_StorageBase<T>
         return m_ptr;
     }
 
-protected:
+   protected:
     template <typename U>
     U* coerced_get() const noexcept
     {
-        return (U*)get();
+        return (U*) get();
     }
 
     T** m_ptr = 0;
 };
 
 export template <typename T, typename U, typename... Rest>
-struct ForeignPointer_StorageBase<T, U, Rest...> : public ForeignPointer_StorageBase<T, Rest...>
-{
-    operator U* () const noexcept
+struct ForeignPointer_StorageBase<T, U, Rest...> : public ForeignPointer_StorageBase<T, Rest...> {
+    operator U*() const noexcept
     {
         return this->coerced_get<U>();
     }
@@ -123,8 +125,8 @@ struct ForeignPointer_StorageBase<T, U, Rest...> : public ForeignPointer_Storage
 export template <typename T, typename... Conversions>
 class ForeignPointer : public ForeignPointer_StorageBase<T, Conversions...>
 {
-public:
-    ForeignPointer() noexcept = default;
+   public:
+    ForeignPointer() noexcept  = default;
     ~ForeignPointer() noexcept = default;
 
     ForeignPointer(uintptr_t addr) noexcept
@@ -175,24 +177,24 @@ public:
         return *this;
     }
 
-    bool operator== (nullptr_t) const noexcept
+    bool operator==(nullptr_t) const noexcept
     {
         return this->get() == nullptr;
     }
 
-    bool operator!= (nullptr_t) const noexcept
+    bool operator!=(nullptr_t) const noexcept
     {
         return this->get() != nullptr;
     }
 
     template <typename... T>
-    bool operator== (const ForeignPointer<T...>& other)
+    bool operator==(const ForeignPointer<T...>& other)
     {
         return this->get() == other.get();
     }
 
     template <typename... T>
-    bool operator!= (const ForeignPointer<T...>& other)
+    bool operator!=(const ForeignPointer<T...>& other)
     {
         return this->get() != other.get();
     }
@@ -213,24 +215,42 @@ public:
         return is_valid();
     }
 
-    operator void* () const noexcept
+    operator void*() const noexcept
     {
         return this->get();
     }
 
     template <typename U>
-    U* get_as() const noexcept { return (U*)this->get(); }
+    U* get_as() const noexcept
+    {
+        return (U*) this->get();
+    }
 
-    bool is_valid() const noexcept { return this->m_ptr && *this->m_ptr; }
+    bool is_valid() const noexcept
+    {
+        return this->m_ptr && *this->m_ptr;
+    }
 
-    uintptr_t get_offset() const noexcept { return reinterpret_cast<uintptr_t>(this->m_ptr); }
-    void set_offset(uintptr_t offset) noexcept { this->m_ptr = reinterpret_cast<T**>(offset); }
-    void set_offset(T** offset) noexcept { this->m_ptr = offset; }
+    uintptr_t get_offset() const noexcept
+    {
+        return reinterpret_cast<uintptr_t>(this->m_ptr);
+    }
+    void set_offset(uintptr_t offset) noexcept
+    {
+        this->m_ptr = reinterpret_cast<T**>(offset);
+    }
+    void set_offset(T** offset) noexcept
+    {
+        this->m_ptr = offset;
+    }
 
-    void reset() { this->m_ptr = nullptr; }
+    void reset()
+    {
+        this->m_ptr = nullptr;
+    }
 
     template <typename U, typename = std::enable_if<std::is_convertible_v<T, U>, void>>
-    inline operator ForeignPointer<U>& ()
+    inline operator ForeignPointer<U>&()
     {
         return reinterpret_cast<ForeignPointer<U>&>(*this);
     }

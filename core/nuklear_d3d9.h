@@ -4,13 +4,13 @@
  * no warrenty implied; use at your own risk.
  * authored from 2015-2016 by Micha Mettke
  */
- /*
-  * ==============================================================
-  *
-  *                              API
-  *
-  * ===============================================================
-  */
+/*
+ * ==============================================================
+ *
+ *                              API
+ *
+ * ===============================================================
+ */
 #ifndef NK_D3D9_H_
 #define NK_D3D9_H_
 
@@ -31,14 +31,21 @@
 
 typedef struct IDirect3DDevice9 IDirect3DDevice9;
 
-NK_API struct nk_context* nk_d3d9_init(IDirect3DDevice9* device, int width, int height);
-NK_API void nk_d3d9_font_stash_begin(struct nk_font_atlas** atlas);
-NK_API void nk_d3d9_font_stash_end(void);
-NK_API int nk_d3d9_handle_event(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
+NK_API struct nk_context*
+nk_d3d9_init(IDirect3DDevice9* device, int width, int height);
+NK_API void
+nk_d3d9_font_stash_begin(struct nk_font_atlas** atlas);
+NK_API void
+nk_d3d9_font_stash_end(void);
+NK_API int
+nk_d3d9_handle_event(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
 NK_API void nk_d3d9_render(enum nk_anti_aliasing);
-NK_API void nk_d3d9_release(void);
-NK_API void nk_d3d9_resize(int width, int height);
-NK_API void nk_d3d9_shutdown(void);
+NK_API void
+nk_d3d9_release(void);
+NK_API void
+nk_d3d9_resize(int width, int height);
+NK_API void
+nk_d3d9_shutdown(void);
 
 #endif
 /*
@@ -53,9 +60,8 @@ NK_API void nk_d3d9_shutdown(void);
 #define WIN32_LEAN_AND_MEAN
 #define COBJMACROS
 #include <d3d9.h>
-
-#include <stdlib.h>
 #include <stddef.h>
+#include <stdlib.h>
 #include <string.h>
 
 struct nk_d3d9_vertex {
@@ -149,22 +155,21 @@ nk_d3d9_render(enum nk_anti_aliasing AA)
         /* fill converting configuration */
         struct nk_convert_config config;
         NK_STORAGE const struct nk_draw_vertex_layout_element vertex_layout[] = {
-            {NK_VERTEX_POSITION, NK_FORMAT_FLOAT,    NK_OFFSETOF(struct nk_d3d9_vertex, position)},
-            {NK_VERTEX_COLOR,    NK_FORMAT_B8G8R8A8, NK_OFFSETOF(struct nk_d3d9_vertex, col)},
-            {NK_VERTEX_TEXCOORD, NK_FORMAT_FLOAT,    NK_OFFSETOF(struct nk_d3d9_vertex, uv)},
-            {NK_VERTEX_LAYOUT_END}
-        };
+            {NK_VERTEX_POSITION, NK_FORMAT_FLOAT, NK_OFFSETOF(struct nk_d3d9_vertex, position)},
+            {NK_VERTEX_COLOR, NK_FORMAT_B8G8R8A8, NK_OFFSETOF(struct nk_d3d9_vertex, col)},
+            {NK_VERTEX_TEXCOORD, NK_FORMAT_FLOAT, NK_OFFSETOF(struct nk_d3d9_vertex, uv)},
+            {NK_VERTEX_LAYOUT_END}};
         memset(&config, 0, sizeof(config));
-        config.vertex_layout = vertex_layout;
-        config.vertex_size = sizeof(struct nk_d3d9_vertex);
-        config.vertex_alignment = NK_ALIGNOF(struct nk_d3d9_vertex);
-        config.global_alpha = 1.0f;
-        config.shape_AA = AA;
-        config.line_AA = AA;
+        config.vertex_layout        = vertex_layout;
+        config.vertex_size          = sizeof(struct nk_d3d9_vertex);
+        config.vertex_alignment     = NK_ALIGNOF(struct nk_d3d9_vertex);
+        config.global_alpha         = 1.0f;
+        config.shape_AA             = AA;
+        config.line_AA              = AA;
         config.circle_segment_count = 22;
-        config.curve_segment_count = 22;
-        config.arc_segment_count = 22;
-        config.tex_null = d3d9.tex_null;
+        config.curve_segment_count  = 22;
+        config.arc_segment_count    = 22;
+        config.tex_null             = d3d9.tex_null;
 
         /* convert shapes into vertexes */
         nk_buffer_init_default(&vbuf);
@@ -172,29 +177,37 @@ nk_d3d9_render(enum nk_anti_aliasing AA)
         nk_convert(&d3d9.ctx, &d3d9.cmds, &vbuf, &ebuf, &config);
 
         /* iterate over and execute each draw command */
-        offset = (const nk_draw_index*)nk_buffer_memory_const(&ebuf);
-        vertex_count = (UINT)vbuf.needed / sizeof(struct nk_d3d9_vertex);
+        offset       = (const nk_draw_index*) nk_buffer_memory_const(&ebuf);
+        vertex_count = (UINT) vbuf.needed / sizeof(struct nk_d3d9_vertex);
 
         nk_draw_foreach(cmd, &d3d9.ctx, &d3d9.cmds)
         {
             RECT scissor;
-            if (!cmd->elem_count) continue;
+            if (!cmd->elem_count)
+                continue;
 
-            hr = IDirect3DDevice9_SetTexture(d3d9.device, 0, (IDirect3DBaseTexture9*)cmd->texture.ptr);
+            hr = IDirect3DDevice9_SetTexture(
+                d3d9.device, 0, (IDirect3DBaseTexture9*) cmd->texture.ptr);
             NK_ASSERT(SUCCEEDED(hr));
 
-            scissor.left = (LONG)cmd->clip_rect.x;
-            scissor.right = (LONG)(cmd->clip_rect.x + cmd->clip_rect.w);
-            scissor.top = (LONG)cmd->clip_rect.y;
-            scissor.bottom = (LONG)(cmd->clip_rect.y + cmd->clip_rect.h);
+            scissor.left   = (LONG) cmd->clip_rect.x;
+            scissor.right  = (LONG) (cmd->clip_rect.x + cmd->clip_rect.w);
+            scissor.top    = (LONG) cmd->clip_rect.y;
+            scissor.bottom = (LONG) (cmd->clip_rect.y + cmd->clip_rect.h);
 
             hr = IDirect3DDevice9_SetScissorRect(d3d9.device, &scissor);
             NK_ASSERT(SUCCEEDED(hr));
 
             NK_ASSERT(sizeof(nk_draw_index) == sizeof(NK_UINT16));
-            hr = IDirect3DDevice9_DrawIndexedPrimitiveUP(d3d9.device, D3DPT_TRIANGLELIST,
-                0, vertex_count, cmd->elem_count / 3, offset, D3DFMT_INDEX16,
-                nk_buffer_memory_const(&vbuf), sizeof(struct nk_d3d9_vertex));
+            hr = IDirect3DDevice9_DrawIndexedPrimitiveUP(d3d9.device,
+                                                         D3DPT_TRIANGLELIST,
+                                                         0,
+                                                         vertex_count,
+                                                         cmd->elem_count / 3,
+                                                         offset,
+                                                         D3DFMT_INDEX16,
+                                                         nk_buffer_memory_const(&vbuf),
+                                                         sizeof(struct nk_d3d9_vertex));
             // NK_ASSERT(SUCCEEDED(hr));
             offset += cmd->elem_count;
         }
@@ -213,15 +226,15 @@ nk_d3d9_render(enum nk_anti_aliasing AA)
 static void
 nk_d3d9_get_projection_matrix(int width, int height, float* result)
 {
-    const float L = 0.5f;
-    const float R = (float)width + 0.5f;
-    const float T = 0.5f;
-    const float B = (float)height + 0.5f;
+    const float L      = 0.5f;
+    const float R      = (float) width + 0.5f;
+    const float T      = 0.5f;
+    const float B      = (float) height + 0.5f;
     float matrix[4][4] = {
-        { 0.0f, 0.0f, 0.0f, 0.0f },
-        { 0.0f, 0.0f, 0.0f, 0.0f },
-        { 0.0f, 0.0f, 0.0f, 0.0f },
-        { 0.0f, 0.0f, 0.0f, 1.0f },
+        {0.0f, 0.0f, 0.0f, 0.0f},
+        {0.0f, 0.0f, 0.0f, 0.0f},
+        {0.0f, 0.0f, 0.0f, 0.0f},
+        {0.0f, 0.0f, 0.0f, 1.0f},
     };
     matrix[0][0] = 2.0f / (R - L);
     matrix[1][1] = 2.0f / (T - B);
@@ -247,15 +260,24 @@ nk_d3d9_create_font_texture()
 
     image = nk_font_atlas_bake(&d3d9.atlas, &w, &h, NK_FONT_ATLAS_RGBA32);
 
-    hr = IDirect3DDevice9_CreateTexture(d3d9.device, w, h, 1, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &d3d9.texture, NULL);
+    hr = IDirect3DDevice9_CreateTexture(d3d9.device,
+                                        w,
+                                        h,
+                                        1,
+                                        D3DUSAGE_DYNAMIC,
+                                        D3DFMT_A8R8G8B8,
+                                        D3DPOOL_DEFAULT,
+                                        &d3d9.texture,
+                                        NULL);
     NK_ASSERT(SUCCEEDED(hr));
 
     hr = IDirect3DTexture9_LockRect(d3d9.texture, 0, &locked, NULL, 0);
     NK_ASSERT(SUCCEEDED(hr));
 
-    for (y = 0; y < h; y++) {
-        void* src = (char*)image + y * w * 4;
-        void* dst = (char*)locked.pBits + y * locked.Pitch;
+    for (y = 0; y < h; y++)
+    {
+        void* src = (char*) image + y * w * 4;
+        void* dst = (char*) locked.pBits + y * locked.Pitch;
         memcpy(dst, src, w * 4);
     }
 
@@ -268,14 +290,15 @@ nk_d3d9_create_font_texture()
 NK_API void
 nk_d3d9_resize(int width, int height)
 {
-    if (d3d9.texture) {
+    if (d3d9.texture)
+    {
         nk_d3d9_create_font_texture();
     }
 
     nk_d3d9_create_state();
 
     nk_d3d9_get_projection_matrix(width, height, &d3d9.projection.m[0][0]);
-    d3d9.viewport.Width = width;
+    d3d9.viewport.Width  = width;
     d3d9.viewport.Height = height;
 }
 
@@ -284,158 +307,170 @@ nk_d3d9_handle_event(HWND wnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
     switch (msg)
     {
-    case WM_KEYDOWN:
-    case WM_KEYUP:
-    case WM_SYSKEYDOWN:
-    case WM_SYSKEYUP:
-    {
-        int down = !((lparam >> 31) & 1);
-        int ctrl = GetKeyState(VK_CONTROL) & (1 << 15);
+        case WM_KEYDOWN:
+        case WM_KEYUP:
+        case WM_SYSKEYDOWN:
+        case WM_SYSKEYUP: {
+            int down = !((lparam >> 31) & 1);
+            int ctrl = GetKeyState(VK_CONTROL) & (1 << 15);
 
-        switch (wparam)
-        {
-        case VK_SHIFT:
-        case VK_LSHIFT:
-        case VK_RSHIFT:
-            nk_input_key(&d3d9.ctx, NK_KEY_SHIFT, down);
-            return 1;
+            switch (wparam)
+            {
+                case VK_SHIFT:
+                case VK_LSHIFT:
+                case VK_RSHIFT:
+                    nk_input_key(&d3d9.ctx, NK_KEY_SHIFT, down);
+                    return 1;
 
-        case VK_DELETE:
-            nk_input_key(&d3d9.ctx, NK_KEY_DEL, down);
-            return 1;
+                case VK_DELETE:
+                    nk_input_key(&d3d9.ctx, NK_KEY_DEL, down);
+                    return 1;
 
-        case VK_RETURN:
-            nk_input_key(&d3d9.ctx, NK_KEY_ENTER, down);
-            return 1;
+                case VK_RETURN:
+                    nk_input_key(&d3d9.ctx, NK_KEY_ENTER, down);
+                    return 1;
 
-        case VK_TAB:
-            nk_input_key(&d3d9.ctx, NK_KEY_TAB, down);
-            return 1;
+                case VK_TAB:
+                    nk_input_key(&d3d9.ctx, NK_KEY_TAB, down);
+                    return 1;
 
-        case VK_LEFT:
-            if (ctrl)
-                nk_input_key(&d3d9.ctx, NK_KEY_TEXT_WORD_LEFT, down);
-            else
-                nk_input_key(&d3d9.ctx, NK_KEY_LEFT, down);
-            return 1;
+                case VK_LEFT:
+                    if (ctrl)
+                        nk_input_key(&d3d9.ctx, NK_KEY_TEXT_WORD_LEFT, down);
+                    else
+                        nk_input_key(&d3d9.ctx, NK_KEY_LEFT, down);
+                    return 1;
 
-        case VK_RIGHT:
-            if (ctrl)
-                nk_input_key(&d3d9.ctx, NK_KEY_TEXT_WORD_RIGHT, down);
-            else
-                nk_input_key(&d3d9.ctx, NK_KEY_RIGHT, down);
-            return 1;
+                case VK_RIGHT:
+                    if (ctrl)
+                        nk_input_key(&d3d9.ctx, NK_KEY_TEXT_WORD_RIGHT, down);
+                    else
+                        nk_input_key(&d3d9.ctx, NK_KEY_RIGHT, down);
+                    return 1;
 
-        case VK_BACK:
-            nk_input_key(&d3d9.ctx, NK_KEY_BACKSPACE, down);
-            return 1;
+                case VK_BACK:
+                    nk_input_key(&d3d9.ctx, NK_KEY_BACKSPACE, down);
+                    return 1;
 
-        case VK_HOME:
-            nk_input_key(&d3d9.ctx, NK_KEY_TEXT_START, down);
-            nk_input_key(&d3d9.ctx, NK_KEY_SCROLL_START, down);
-            return 1;
+                case VK_HOME:
+                    nk_input_key(&d3d9.ctx, NK_KEY_TEXT_START, down);
+                    nk_input_key(&d3d9.ctx, NK_KEY_SCROLL_START, down);
+                    return 1;
 
-        case VK_END:
-            nk_input_key(&d3d9.ctx, NK_KEY_TEXT_END, down);
-            nk_input_key(&d3d9.ctx, NK_KEY_SCROLL_END, down);
-            return 1;
+                case VK_END:
+                    nk_input_key(&d3d9.ctx, NK_KEY_TEXT_END, down);
+                    nk_input_key(&d3d9.ctx, NK_KEY_SCROLL_END, down);
+                    return 1;
 
-        case VK_NEXT:
-            nk_input_key(&d3d9.ctx, NK_KEY_SCROLL_DOWN, down);
-            return 1;
+                case VK_NEXT:
+                    nk_input_key(&d3d9.ctx, NK_KEY_SCROLL_DOWN, down);
+                    return 1;
 
-        case VK_PRIOR:
-            nk_input_key(&d3d9.ctx, NK_KEY_SCROLL_UP, down);
-            return 1;
+                case VK_PRIOR:
+                    nk_input_key(&d3d9.ctx, NK_KEY_SCROLL_UP, down);
+                    return 1;
 
-        case 'C':
-            if (ctrl) {
-                nk_input_key(&d3d9.ctx, NK_KEY_COPY, down);
-                return 1;
+                case 'C':
+                    if (ctrl)
+                    {
+                        nk_input_key(&d3d9.ctx, NK_KEY_COPY, down);
+                        return 1;
+                    }
+                    break;
+
+                case 'V':
+                    if (ctrl)
+                    {
+                        nk_input_key(&d3d9.ctx, NK_KEY_PASTE, down);
+                        return 1;
+                    }
+                    break;
+
+                case 'X':
+                    if (ctrl)
+                    {
+                        nk_input_key(&d3d9.ctx, NK_KEY_CUT, down);
+                        return 1;
+                    }
+                    break;
+
+                case 'Z':
+                    if (ctrl)
+                    {
+                        nk_input_key(&d3d9.ctx, NK_KEY_TEXT_UNDO, down);
+                        return 1;
+                    }
+                    break;
+
+                case 'R':
+                    if (ctrl)
+                    {
+                        nk_input_key(&d3d9.ctx, NK_KEY_TEXT_REDO, down);
+                        return 1;
+                    }
+                    break;
             }
-            break;
-
-        case 'V':
-            if (ctrl) {
-                nk_input_key(&d3d9.ctx, NK_KEY_PASTE, down);
-                return 1;
-            }
-            break;
-
-        case 'X':
-            if (ctrl) {
-                nk_input_key(&d3d9.ctx, NK_KEY_CUT, down);
-                return 1;
-            }
-            break;
-
-        case 'Z':
-            if (ctrl) {
-                nk_input_key(&d3d9.ctx, NK_KEY_TEXT_UNDO, down);
-                return 1;
-            }
-            break;
-
-        case 'R':
-            if (ctrl) {
-                nk_input_key(&d3d9.ctx, NK_KEY_TEXT_REDO, down);
-                return 1;
-            }
-            break;
+            return 0;
         }
-        return 0;
-    }
 
-    case WM_CHAR:
-        if (wparam >= 32)
-        {
-            nk_input_unicode(&d3d9.ctx, (nk_rune)wparam);
+        case WM_CHAR:
+            if (wparam >= 32)
+            {
+                nk_input_unicode(&d3d9.ctx, (nk_rune) wparam);
+                return 1;
+            }
+            break;
+
+        case WM_LBUTTONDOWN:
+            nk_input_button(
+                &d3d9.ctx, NK_BUTTON_LEFT, (short) LOWORD(lparam), (short) HIWORD(lparam), 1);
+            SetCapture(wnd);
             return 1;
-        }
-        break;
 
-    case WM_LBUTTONDOWN:
-        nk_input_button(&d3d9.ctx, NK_BUTTON_LEFT, (short)LOWORD(lparam), (short)HIWORD(lparam), 1);
-        SetCapture(wnd);
-        return 1;
+        case WM_LBUTTONUP:
+            nk_input_button(
+                &d3d9.ctx, NK_BUTTON_DOUBLE, (short) LOWORD(lparam), (short) HIWORD(lparam), 0);
+            nk_input_button(
+                &d3d9.ctx, NK_BUTTON_LEFT, (short) LOWORD(lparam), (short) HIWORD(lparam), 0);
+            ReleaseCapture();
+            return 1;
 
-    case WM_LBUTTONUP:
-        nk_input_button(&d3d9.ctx, NK_BUTTON_DOUBLE, (short)LOWORD(lparam), (short)HIWORD(lparam), 0);
-        nk_input_button(&d3d9.ctx, NK_BUTTON_LEFT, (short)LOWORD(lparam), (short)HIWORD(lparam), 0);
-        ReleaseCapture();
-        return 1;
+        case WM_RBUTTONDOWN:
+            nk_input_button(
+                &d3d9.ctx, NK_BUTTON_RIGHT, (short) LOWORD(lparam), (short) HIWORD(lparam), 1);
+            SetCapture(wnd);
+            return 1;
 
-    case WM_RBUTTONDOWN:
-        nk_input_button(&d3d9.ctx, NK_BUTTON_RIGHT, (short)LOWORD(lparam), (short)HIWORD(lparam), 1);
-        SetCapture(wnd);
-        return 1;
+        case WM_RBUTTONUP:
+            nk_input_button(
+                &d3d9.ctx, NK_BUTTON_RIGHT, (short) LOWORD(lparam), (short) HIWORD(lparam), 0);
+            ReleaseCapture();
+            return 1;
 
-    case WM_RBUTTONUP:
-        nk_input_button(&d3d9.ctx, NK_BUTTON_RIGHT, (short)LOWORD(lparam), (short)HIWORD(lparam), 0);
-        ReleaseCapture();
-        return 1;
+        case WM_MBUTTONDOWN:
+            nk_input_button(
+                &d3d9.ctx, NK_BUTTON_MIDDLE, (short) LOWORD(lparam), (short) HIWORD(lparam), 1);
+            SetCapture(wnd);
+            return 1;
 
-    case WM_MBUTTONDOWN:
-        nk_input_button(&d3d9.ctx, NK_BUTTON_MIDDLE, (short)LOWORD(lparam), (short)HIWORD(lparam), 1);
-        SetCapture(wnd);
-        return 1;
+        case WM_MBUTTONUP:
+            nk_input_button(
+                &d3d9.ctx, NK_BUTTON_MIDDLE, (short) LOWORD(lparam), (short) HIWORD(lparam), 0);
+            ReleaseCapture();
+            return 1;
 
-    case WM_MBUTTONUP:
-        nk_input_button(&d3d9.ctx, NK_BUTTON_MIDDLE, (short)LOWORD(lparam), (short)HIWORD(lparam), 0);
-        ReleaseCapture();
-        return 1;
+        case WM_MOUSEWHEEL:
+            nk_input_scroll(&d3d9.ctx, nk_vec2(0, (float) (short) HIWORD(wparam) / WHEEL_DELTA));
+            return 1;
 
-    case WM_MOUSEWHEEL:
-        nk_input_scroll(&d3d9.ctx, nk_vec2(0, (float)(short)HIWORD(wparam) / WHEEL_DELTA));
-        return 1;
+        case WM_MOUSEMOVE:
+            nk_input_motion(&d3d9.ctx, (short) LOWORD(lparam), (short) HIWORD(lparam));
+            return 1;
 
-    case WM_MOUSEMOVE:
-        nk_input_motion(&d3d9.ctx, (short)LOWORD(lparam), (short)HIWORD(lparam));
-        return 1;
-
-    case WM_LBUTTONDBLCLK:
-        nk_input_button(&d3d9.ctx, NK_BUTTON_DOUBLE, (short)LOWORD(lparam), (short)HIWORD(lparam), 1);
-        return 1;
+        case WM_LBUTTONDBLCLK:
+            nk_input_button(
+                &d3d9.ctx, NK_BUTTON_DOUBLE, (short) LOWORD(lparam), (short) HIWORD(lparam), 1);
+            return 1;
     }
 
     return 0;
@@ -449,34 +484,42 @@ nk_d3d9_clipboard_paste(nk_handle usr, struct nk_text_edit* edit)
     LPCWSTR wstr;
     int utf8size;
 
-    (void)usr;
-    if (!IsClipboardFormatAvailable(CF_UNICODETEXT) && OpenClipboard(NULL)) {
+    (void) usr;
+    if (!IsClipboardFormatAvailable(CF_UNICODETEXT) && OpenClipboard(NULL))
+    {
         return;
     }
 
     mem = GetClipboardData(CF_UNICODETEXT);
-    if (!mem) {
+    if (!mem)
+    {
         CloseClipboard();
         return;
     }
 
     size = GlobalSize(mem) - 1;
-    if (!size) {
+    if (!size)
+    {
         CloseClipboard();
         return;
     }
 
-    wstr = (LPCWSTR)GlobalLock(mem);
-    if (!wstr) {
+    wstr = (LPCWSTR) GlobalLock(mem);
+    if (!wstr)
+    {
         CloseClipboard();
         return;
     }
 
-    utf8size = WideCharToMultiByte(CP_UTF8, 0, wstr, (int)size / sizeof(wchar_t), NULL, 0, NULL, NULL);
-    if (utf8size) {
-        char* utf8 = (char*)malloc(utf8size);
-        if (utf8) {
-            WideCharToMultiByte(CP_UTF8, 0, wstr, (int)size / sizeof(wchar_t), utf8, utf8size, NULL, NULL);
+    utf8size =
+        WideCharToMultiByte(CP_UTF8, 0, wstr, (int) size / sizeof(wchar_t), NULL, 0, NULL, NULL);
+    if (utf8size)
+    {
+        char* utf8 = (char*) malloc(utf8size);
+        if (utf8)
+        {
+            WideCharToMultiByte(
+                CP_UTF8, 0, wstr, (int) size / sizeof(wchar_t), utf8, utf8size, NULL, NULL);
             nk_textedit_paste(edit, utf8, utf8size);
             free(utf8);
         }
@@ -491,17 +534,21 @@ nk_d3d9_clipboard_copy(nk_handle usr, const char* text, int len)
 {
     int wsize;
 
-    (void)usr;
-    if (!OpenClipboard(NULL)) {
+    (void) usr;
+    if (!OpenClipboard(NULL))
+    {
         return;
     }
 
     wsize = MultiByteToWideChar(CP_UTF8, 0, text, len, NULL, 0);
-    if (wsize) {
+    if (wsize)
+    {
         HGLOBAL mem = GlobalAlloc(GMEM_MOVEABLE, (wsize + 1) * sizeof(wchar_t));
-        if (mem) {
-            wchar_t* wstr = (wchar_t*)GlobalLock(mem);
-            if (wstr) {
+        if (mem)
+        {
+            wchar_t* wstr = (wchar_t*) GlobalLock(mem);
+            if (wstr)
+            {
                 MultiByteToWideChar(CP_UTF8, 0, text, len, wstr, wsize);
                 wstr[wsize] = 0;
                 GlobalUnlock(mem);
@@ -520,17 +567,17 @@ nk_d3d9_init(IDirect3DDevice9* device, int width, int height)
     IDirect3DDevice9_AddRef(device);
 
     nk_init_default(&d3d9.ctx, 0);
-    d3d9.state = NULL;
-    d3d9.texture = NULL;
-    d3d9.ctx.clip.copy = nk_d3d9_clipboard_copy;
-    d3d9.ctx.clip.paste = nk_d3d9_clipboard_paste;
+    d3d9.state             = NULL;
+    d3d9.texture           = NULL;
+    d3d9.ctx.clip.copy     = nk_d3d9_clipboard_copy;
+    d3d9.ctx.clip.paste    = nk_d3d9_clipboard_paste;
     d3d9.ctx.clip.userdata = nk_handle_ptr(0);
 
     nk_buffer_init_default(&d3d9.cmds);
 
     /* viewport */
-    d3d9.viewport.X = 0;
-    d3d9.viewport.Y = 0;
+    d3d9.viewport.X    = 0;
+    d3d9.viewport.Y    = 0;
     d3d9.viewport.MinZ = 0.0f;
     d3d9.viewport.MaxZ = 1.0f;
 
@@ -557,7 +604,8 @@ nk_d3d9_font_stash_end(void)
 }
 
 NK_API
-void nk_d3d9_shutdown(void)
+void
+nk_d3d9_shutdown(void)
 {
     nk_d3d9_release();
 

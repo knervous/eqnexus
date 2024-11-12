@@ -1,0 +1,71 @@
+# Basic Formatting Style
+BasedOnStyle: Google
+IndentWidth: 4                  # Use 4 spaces for indentation
+TabWidth: 4                      # Tabs are displayed as 4 spaces wide
+UseTab: Never                    # Do not use tabs, only spaces
+
+# Braces and Indentation
+BraceWrapping:
+  AfterClass: true               # Open braces on the next line for class definitions
+  AfterControlStatement: true    # Place braces on a new line after control statements (e.g., if, for, while)
+  AfterEnum: true
+  AfterFunction: true
+  AfterNamespace: true
+  BeforeElse: true
+  SplitEmptyFunction: true       # Split empty functions as {}
+
+# Pointer and Reference Alignment
+PointerAlignment: Left           # Align * and & with the variable type (e.g., int* ptr)
+DerivePointerAlignment: false    # Enforce explicit alignment style, do not derive
+
+# Column Limit
+ColumnLimit: 100                 # Limit line width to 100 characters
+
+# Spaces and Padding
+SpacesInParentheses: false       # No spaces inside parentheses
+SpacesInSquareBrackets: false    # No spaces inside square brackets
+SpaceAfterCStyleCast: true       # Space after C-style cast
+SpaceAfterTemplateKeyword: true
+SpaceBeforeSquareBrackets: false
+
+# Namespace Formatting
+NamespaceIndentation: None       # Don’t indent code inside namespaces
+
+# Constructor Initializer Formatting
+ConstructorInitializerIndentWidth: 4
+BreakConstructorInitializers: BeforeComma   # Break before commas in constructor initializers
+
+# Function Formatting
+AllowShortFunctionsOnASingleLine: Empty    # Only allow short empty functions on one line
+IndentWrappedFunctionNames: false          # Keep function names aligned with return types
+
+# Include Sorting
+SortIncludes: true                        # Sort #includes in alphabetical order
+IncludeCategories:
+  - Regex: '^<.*\.h>'
+    Priority: 1
+  - Regex: '^"'
+    Priority: 2
+
+# Line Breaking Options
+AlwaysBreakAfterReturnType: TopLevel      # Break after return type for top-level functions
+AlwaysBreakTemplateDeclarations: Yes      # Break long template declarations
+BinPackArguments: false                   # Each function argument goes on its own line if they don't all fit
+BinPackParameters: false
+
+# Modern C++ Styling
+Cpp11BracedListStyle: true                # Format C++11 braced list with consistent spacing
+AllowShortIfStatementsOnASingleLine: false
+SpacesInAngles: false                     # No spaces within template argument angles
+
+# Customization for readability and modern style
+IndentCaseLabels: true                    # Indent case labels within switch statements
+AlignConsecutiveAssignments: true         # Align consecutive assignments for readability
+AlignTrailingComments: true               # Align trailing comments in columns
+BreakBeforeBinaryOperators: None          # Place binary operators on the same line
+BreakBeforeBraces: Custom
+BreakBeforeTernaryOperators: true         # Ternary operators break before
+AlignOperands: true                       # Align operands in expressions for readability
+
+# Additional Modern Formatting
+SpaceBeforeParens: ControlStatements      # Only add space before parentheses in control statements

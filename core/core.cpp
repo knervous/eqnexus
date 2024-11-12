@@ -8,14 +8,17 @@ import config;
 import server;
 
 #include <MinHook.h>
-#include <iostream>
-#include <cstdio>
-#include <vector>
 #include <dinput.h>
+
+#include <cstdio>
+#include <iostream>
+#include <vector>
 
 std::unique_ptr<EQOverlay> eqoverlay = nullptr;
 
-void AttachConsoleToDLL() {
+void
+AttachConsoleToDLL()
+{
     AllocConsole();
     FILE* fp;
     freopen_s(&fp, "CONOUT$", "w", stdout);
@@ -23,18 +26,24 @@ void AttachConsoleToDLL() {
     std::cout.clear();
 }
 
-void WaitForDebugger() {
+void
+WaitForDebugger()
+{
     std::cout << "Waiting for debugger to attach..." << std::endl;
-    while (!IsDebuggerPresent()) {
-        Sleep(100); // Wait 100 milliseconds before checking again
+    while (!IsDebuggerPresent())
+    {
+        Sleep(100);  // Wait 100 milliseconds before checking again
     }
     std::cout << "Debugger attached." << std::endl;
 }
 
 IDirectInputDevice8A* keyboard = nullptr;
-IDirectInputDevice8A* mouse = nullptr;
-bool SetupCore() {
-    if (MH_Initialize() != MH_OK) {
+IDirectInputDevice8A* mouse    = nullptr;
+bool
+SetupCore()
+{
+    if (MH_Initialize() != MH_OK)
+    {
         std::cerr << "Failed to initialize MinHook." << std::endl;
         return false;
     }
@@ -46,33 +55,41 @@ bool SetupCore() {
         FileSystem::Init();
         Config::Init();
         eqoverlay = std::make_unique<EQOverlay>();
-        if (mouse && keyboard) {
+        if (mouse && keyboard)
+        {
             eqoverlay->SetKeyboard(keyboard);
             eqoverlay->SetMouse(mouse);
         }
     });
-   
+
     return true;
 }
 
 bool did_init = false;
 
-extern "C" __declspec(dllexport) bool SetDevices(IDirectInputDevice8A* k, IDirectInputDevice8A* m) { 
+extern "C" __declspec(dllexport) bool
+SetDevices(IDirectInputDevice8A* k, IDirectInputDevice8A* m)
+{
     keyboard = k;
-    mouse = m;
-    if (eqoverlay) {
+    mouse    = m;
+    if (eqoverlay)
+    {
         std::cout << "Settings devices for keyboard and mouse" << std::endl;
         eqoverlay->SetKeyboard(k);
         eqoverlay->SetMouse(m);
     }
-    else {
+    else
+    {
         std::cout << "Overlay not initialized in SetDevices" << std::endl;
     }
     return true;
 }
 
-extern "C" __declspec(dllexport) bool Initialize() {
-    if (!did_init) {
+extern "C" __declspec(dllexport) bool
+Initialize()
+{
+    if (!did_init)
+    {
 #ifdef DEV
         AttachConsoleToDLL();
 #endif
@@ -83,8 +100,11 @@ extern "C" __declspec(dllexport) bool Initialize() {
     return true;
 }
 
-extern "C" __declspec(dllexport) bool Teardown() {
-    if (!did_init) {
+extern "C" __declspec(dllexport) bool
+Teardown()
+{
+    if (!did_init)
+    {
         return true;
     }
     D3D9Hooks::Teardown();
@@ -95,31 +115,27 @@ extern "C" __declspec(dllexport) bool Teardown() {
     Login::Teardown();
     FileSystem::Teardown();
     Config::Teardown();
-   
 
-    if (MH_Uninitialize() != MH_OK) {
+    if (MH_Uninitialize() != MH_OK)
+    {
         std::cerr << "Failed to uninitialize MinHook." << std::endl;
         return false;
     }
     return true;
 }
 
-BOOL APIENTRY DllMain( HMODULE hModule,
-                       DWORD  ul_reason_for_call,
-                       LPVOID lpReserved
-                     )
+BOOL APIENTRY
+DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
     switch (ul_reason_for_call)
     {
-    case DLL_PROCESS_ATTACH:
-    case DLL_THREAD_ATTACH:
-    {
-        break;
-    }
-    case DLL_THREAD_DETACH:
-    case DLL_PROCESS_DETACH:
-        break;
+        case DLL_PROCESS_ATTACH:
+        case DLL_THREAD_ATTACH: {
+            break;
+        }
+        case DLL_THREAD_DETACH:
+        case DLL_PROCESS_DETACH:
+            break;
     }
     return TRUE;
 }
-
