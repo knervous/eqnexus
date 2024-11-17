@@ -7,7 +7,7 @@
         },
         {
             "name": "Requiem [DEV]",
-            "manifest": "https://eqrequiem.blob.core.windows.net/assets/manifest_requiem.json"
+            "manifest": "https://github.com/knervous/requiemfiles/releases/latest/download/manifest.json"
         }
     ]
 }
