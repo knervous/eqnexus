@@ -19,7 +19,7 @@ PointerAlignment: Left           # Align * and & with the variable type (e.g., i
 DerivePointerAlignment: false    # Enforce explicit alignment style, do not derive
 
 # Column Limit
-ColumnLimit: 100                 # Limit line width to 100 characters
+ColumnLimit: 140                 # Limit line width to 100 characters
 
 # Spaces and Padding
 SpacesInParentheses: false       # No spaces inside parentheses

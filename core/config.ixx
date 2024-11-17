@@ -50,8 +50,7 @@ export class Config
             return;
         }
 
-        std::string content((std::istreambuf_iterator<char>(file)),
-                            std::istreambuf_iterator<char>());
+        std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
         rapidjson::Document document;
         document.Parse(content.c_str());
 

@@ -1,12 +1,14 @@
 export module zipextractor;
 
 import utility;
+import threadpool;
 
 #include <minizip/unzip.h>
 import <string>;
 import <vector>;
 import <iostream>;
 import <fstream>;
+import <xxhash.h>;
 import <filesystem>;
 import <functional>;
 import <chrono>;
@@ -15,11 +17,9 @@ namespace fs = std::filesystem;
 
 export namespace zipextractor
 {
-
 bool
-ProcessZipFileWithCRC32(
-    const std::string& zipPath,
-    std::function<void(const std::string& filePath, const std::string& crc32Hash)> callback)
+ProcessZipFileWithHash(const std::string& zipPath,
+                       std::function<void(const std::string& filePath, const std::string& xxhash3Hash)> callback)
 {
     unzFile zipfile = unzOpen(zipPath.c_str());
     if (!zipfile)
@@ -39,8 +39,7 @@ ProcessZipFileWithCRC32(
     {
         char filename[256];
         unz_file_info file_info;
-        if (unzGetCurrentFileInfo(
-                zipfile, &file_info, filename, sizeof(filename), nullptr, 0, nullptr, 0) != UNZ_OK)
+        if (unzGetCurrentFileInfo(zipfile, &file_info, filename, sizeof(filename), nullptr, 0, nullptr, 0) != UNZ_OK)
         {
             std::cerr << "Failed to get file info" << std::endl;
             unzClose(zipfile);
@@ -54,15 +53,21 @@ ProcessZipFileWithCRC32(
             return false;
         }
 
-        // Initialize CRC for this file
-        uint32_t crc = 0xFFFFFFFF;
+        auto* state = XXH64_createState();
+        if (!state)
+        {
+            std::cerr << "Failed to create xxHash3 state" << std::endl;
+            unzClose(zipfile);
+            return false;
+        }
+        XXH64_reset(state, 0);
 
-        // Read the file in chunks and update CRC
+        // Read the uncompressed file in chunks and update the hash
         char buffer[4096];
         int bytesRead;
         while ((bytesRead = unzReadCurrentFile(zipfile, buffer, sizeof(buffer))) > 0)
         {
-            crc = util::UpdateCRC32(crc, buffer, bytesRead);
+            XXH64_update(state, buffer, bytesRead);
         }
 
         unzCloseCurrentFile(zipfile);
@@ -70,15 +75,19 @@ ProcessZipFileWithCRC32(
         if (bytesRead < 0)
         {
             std::cerr << "Error reading file in ZIP: " << filename << std::endl;
+            XXH64_freeState(state);
             unzClose(zipfile);
             return false;
         }
 
-        // Finalize and convert the CRC to hexadecimal string
-        std::string crc32Hex = util::CRC32ToHex(crc);
+        XXH64_hash_t hash = XXH64_digest(state);
+        XXH64_freeState(state);
 
-        // Call the callback with the file name and CRC32 hash
-        callback(filename, crc32Hex);
+        std::ostringstream oss;
+        oss << std::hex << std::uppercase << std::setfill('0') << std::setw(16) << hash;
+        std::string xxhash3Hex = oss.str();
+
+        callback(filename, xxhash3Hex);
 
     } while (unzGoToNextFile(zipfile) == UNZ_OK);
 
@@ -109,8 +118,7 @@ ExtractAllFilesFromZip(const std::string& zipPath, std::function<void(const std:
     {
         char filename[256];
         unz_file_info file_info;
-        if (unzGetCurrentFileInfo(
-                zipfile, &file_info, filename, sizeof(filename), nullptr, 0, nullptr, 0) != UNZ_OK)
+        if (unzGetCurrentFileInfo(zipfile, &file_info, filename, sizeof(filename), nullptr, 0, nullptr, 0) != UNZ_OK)
         {
             std::cerr << "Failed to get file info" << std::endl;
             unzClose(zipfile);

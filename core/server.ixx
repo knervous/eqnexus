@@ -18,9 +18,7 @@ export class Server
     {
         ContextCallbacks.erase(std::remove_if(ContextCallbacks.begin(),
                                               ContextCallbacks.end(),
-                                              [&remove_id](const auto& tuple) {
-                                                  return std::get<0>(tuple) == remove_id;
-                                              }),
+                                              [&remove_id](const auto& tuple) { return std::get<0>(tuple) == remove_id; }),
                                ContextCallbacks.end());
     }
     static void SetContext(const std::string& context)

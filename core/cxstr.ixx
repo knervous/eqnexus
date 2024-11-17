@@ -317,13 +317,11 @@ export class CXStr
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
     template <typename StringViewIsh>
-    using is_string_view_ish = std::enable_if_t<
-        std::conjunction_v<std::is_convertible<const StringViewIsh&, std::string_view>,
-                           std::negation<std::is_convertible<const StringViewIsh&, const char*>>>>;
+    using is_string_view_ish = std::enable_if_t<std::conjunction_v<std::is_convertible<const StringViewIsh&, std::string_view>,
+                                                                   std::negation<std::is_convertible<const StringViewIsh&, const char*>>>>;
 
     template <typename Iter>
-    using is_elem_cptr = std::bool_constant<
-        std::_Is_any_of_v<Iter, const char* const, char* const, const char*, char*>>;
+    using is_elem_cptr = std::bool_constant<std::_Is_any_of_v<Iter, const char* const, char* const, const char*, char*>>;
 
     static const size_type npos = -1;
 
@@ -1036,8 +1034,7 @@ export class CXStr
             CheckOffset(index);
             Assure(size() + 1, StringEncodingUtf8);
 
-            traits_type::assign(m_data->utf8[m_data->length = static_cast<uint32_t>(index)],
-                                value_type());
+            traits_type::assign(m_data->utf8[m_data->length = static_cast<uint32_t>(index)], value_type());
         }
 
         return *this;
@@ -1055,8 +1052,7 @@ export class CXStr
         char* eraseAt           = ptr + index;
         const size_type newSize = oldSize - count;
         m_data->length          = static_cast<uint32_t>(newSize);
-        traits_type::move(
-            eraseAt, eraseAt + count, newSize - index + 1);  // move suffix and null up
+        traits_type::move(eraseAt, eraseAt + count, newSize - index + 1);  // move suffix and null up
 
         return *this;
     }
@@ -1225,11 +1221,7 @@ export class CXStr
 
     // Compares a [pos1, pos1+count1) substring of this string to a substring [pos2, pos2+count2)
     // of str. If either string is count > size() - pos, the substring is [pos, size()).
-    int compare(size_type pos1,
-                size_type count1,
-                const CXStr& str,
-                size_type pos2,
-                size_type count2 = npos) const
+    int compare(size_type pos1, size_type count1, const CXStr& str, size_type pos2, size_type count2 = npos) const
     {
         return std::string_view{*this}.compare(pos1, count1, std::string_view{str}, pos2, count2);
     }
@@ -1262,8 +1254,7 @@ export class CXStr
     }
 
     template <typename T>
-    int compare(
-        size_type pos1, size_type count1, const T& t, size_type pos2, size_type count2 = npos) const
+    int compare(size_type pos1, size_type count1, const T& t, size_type pos2, size_type count2 = npos) const
     {
         return std::string_view{*this}.compare(pos1, count1, 2, pos2, count2);
     }
@@ -1287,8 +1278,7 @@ export class CXStr
     // Checks if the string ends with the given suffix.
     bool ends_with(std::string_view x) const noexcept
     {
-        return size() >= x.size() &&
-               std::string_view{*this}.compare(size() - x.size(), x.size(), x) == 0;
+        return size() >= x.size() && std::string_view{*this}.compare(size() - x.size(), x.size(), x) == 0;
     }
 
     bool ends_with(char x) const noexcept
@@ -1311,12 +1301,10 @@ export class CXStr
 
     CXStr& replace(const_iterator first, const_iterator last, const CXStr& str)
     {
-        return replace(
-            static_cast<size_type>(first - begin()), static_cast<size_type>(last - first), str);
+        return replace(static_cast<size_type>(first - begin()), static_cast<size_type>(last - first), str);
     }
 
-    CXStr& replace(
-        size_type pos, size_type count, const CXStr& str, size_type pos2, size_type count2 = npos)
+    CXStr& replace(size_type pos, size_type count, const CXStr& str, size_type pos2, size_type count2 = npos)
     {
         std::string_view sv = str;
         return replace(pos, count, sv.substr(pos2, count2));
@@ -1368,10 +1356,7 @@ export class CXStr
 
     CXStr& replace(const_iterator first, const_iterator last, const char* cstr, size_type count2)
     {
-        return replace(static_cast<size_type>(first - begin()),
-                       static_cast<size_type>(last - first),
-                       cstr,
-                       count2);
+        return replace(static_cast<size_type>(first - begin()), static_cast<size_type>(last - first), cstr, count2);
     }
 
     CXStr& replace(size_type pos, size_type count, const char* cstr)
@@ -1380,8 +1365,7 @@ export class CXStr
     }
     CXStr& replace(const_iterator first, const_iterator last, const char* cstr)
     {
-        return replace(
-            static_cast<size_type>(first - begin()), static_cast<size_type>(last - first), cstr);
+        return replace(static_cast<size_type>(first - begin()), static_cast<size_type>(last - first), cstr);
     }
 
     CXStr& replace(size_type pos, size_type count, size_type count2, char ch)
@@ -1412,10 +1396,7 @@ export class CXStr
 
     CXStr& replace(const_iterator first, const_iterator last, size_type count2, char ch)
     {
-        return replace(static_cast<size_type>(first - begin()),
-                       static_cast<size_type>(last - first),
-                       count2,
-                       ch);
+        return replace(static_cast<size_type>(first - begin()), static_cast<size_type>(last - first), count2, ch);
     }
 
     CXStr& replace(const_iterator first, const_iterator last, std::initializer_list<char> ilist)
@@ -1436,13 +1417,11 @@ export class CXStr
     template <typename T, typename = is_string_view_ish<T>>
     CXStr& replace(const_iterator first, const_iterator last, const T& t)
     {
-        return replace(
-            static_cast<size_type>(first - begin()), static_cast<size_type>(last - first), t);
+        return replace(static_cast<size_type>(first - begin()), static_cast<size_type>(last - first), t);
     }
 
     template <typename T, typename = is_string_view_ish<T>>
-    CXStr& replace(
-        size_type pos, size_type count, const T& t, size_type pos2, size_type count2 = npos)
+    CXStr& replace(size_type pos, size_type count, const T& t, size_type pos2, size_type count2 = npos)
     {
         std::string_view sv = t;
         return replace(pos, count, sv.substr(pos2, count2));
@@ -1635,11 +1614,7 @@ export class CXStr
     mutable CStrRep* m_data = nullptr;
 
     template <typename Ptr>
-    CXStr& replace_range(const const_iterator first,
-                         const const_iterator last,
-                         const Ptr first2,
-                         const Ptr last2,
-                         std::false_type)
+    CXStr& replace_range(const const_iterator first, const const_iterator last, const Ptr first2, const Ptr last2, std::false_type)
     {
         // replace [first, last) with [first2, last2) using input_iterators
         const CXStr right(first2, last2);
@@ -1648,17 +1623,11 @@ export class CXStr
     }
 
     template <typename Ptr>
-    CXStr& replace_range(const const_iterator first,
-                         const const_iterator last,
-                         const Ptr first2,
-                         const Ptr last2,
-                         std::true_type)
+    CXStr& replace_range(const const_iterator first, const const_iterator last, const Ptr first2, const Ptr last2, std::true_type)
     {
         // replace [first, last) with [first2, last2) using pointers
-        return replace(static_cast<size_type>(first - cbegin()),
-                       static_cast<size_type>(last - first),
-                       first2,
-                       static_cast<size_type>(last2 - first2));
+        return replace(
+            static_cast<size_type>(first - cbegin()), static_cast<size_type>(last - first), first2, static_cast<size_type>(last2 - first2));
     }
 
     void AssureAccessible() const noexcept;
@@ -2119,8 +2088,7 @@ CXStr::Assure(size_type size, EStringEncoding encoding)
             else if (m_data->encoding == StringEncodingUtf16)
             {
                 // utf16 -> utf8
-                rep->length =
-                    static_cast<uint32_t>(UnicodeToUtf8(m_data->unicode, rep->utf8, rep->alloc));
+                rep->length = static_cast<uint32_t>(UnicodeToUtf8(m_data->unicode, rep->utf8, rep->alloc));
             }
         }
         else if (rep->encoding == StringEncodingUtf16)
@@ -2128,8 +2096,7 @@ CXStr::Assure(size_type size, EStringEncoding encoding)
             if (m_data->encoding == StringEncodingUtf8)
             {
                 // utf8 -> utf16
-                rep->length =
-                    static_cast<uint32_t>(Utf8ToUnicode(m_data->utf8, rep->unicode, rep->alloc));
+                rep->length = static_cast<uint32_t>(Utf8ToUnicode(m_data->utf8, rep->unicode, rep->alloc));
             }
             else
             {

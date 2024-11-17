@@ -5,6 +5,8 @@ import <windows.h>;
 import <iomanip>;
 import <stdexcept>;
 import <iostream>;
+import <atomic>;
+import <memory>;
 import <sstream>;
 import <fstream>;
 import <string>;
@@ -14,25 +16,9 @@ import <filesystem>;
 import <random>;
 import <regex>;
 import <format>;
+import <xxhash.h>;
 import <rapidjson/document.h>;
 #include <commdlg.h>
-
-#include "wincrypt.h"
-
-static const std::array<uint32_t, 256> crc32_table = [] {
-    std::array<uint32_t, 256> table = {};
-    uint32_t polynomial             = 0xEDB88320;
-    for (uint32_t i = 0; i < 256; ++i)
-    {
-        uint32_t crc = i;
-        for (uint32_t j = 0; j < 8; ++j)
-        {
-            crc = (crc >> 1) ^ (crc & 1 ? polynomial : 0);
-        }
-        table[i] = crc;
-    }
-    return table;
-}();
 
 namespace fs = std::filesystem;
 
@@ -53,13 +39,12 @@ Interpolate(const std::string& formatString, Args&&... args)
     std::ostringstream oss;
     std::size_t pos = 0, placeholderIdx = 0;
 
-    std::initializer_list<int>{
-        ((void) (pos = formatString.find("{}", pos),
-                 oss << formatString.substr(placeholderIdx, pos - placeholderIdx),
-                 oss << args,
-                 pos += 2,  // Move past "{}"
-                 placeholderIdx = pos),
-         0)...};
+    std::initializer_list<int>{((void) (pos = formatString.find("{}", pos),
+                                        oss << formatString.substr(placeholderIdx, pos - placeholderIdx),
+                                        oss << args,
+                                        pos += 2,  // Move past "{}"
+                                        placeholderIdx = pos),
+                                0)...};
 
     oss << formatString.substr(placeholderIdx);
     return oss.str();
@@ -89,7 +74,8 @@ GetWithFallback(const rapidjson::Value& obj, const char* key, T fallback)
     return fallback;
 }
 
-const std::string& GetOptionalString(const rapidjson::Document& obj, const char* key, const std::string& fallback)
+const std::string&
+GetOptionalString(const rapidjson::Document& obj, const char* key, const std::string& fallback)
 {
     if (obj.HasMember(key) && obj[key].IsString())
     {
@@ -99,67 +85,46 @@ const std::string& GetOptionalString(const rapidjson::Document& obj, const char*
 }
 
 std::string
-GetMD5Hash(const std::string& filename)
+GenerateFileHash(const std::string& filePath)
 {
-    // Open the file
-    std::ifstream file(filename, std::ifstream::binary);
-    if (!file)
+    std::ifstream file(filePath, std::ios::binary);
+    if (!file.is_open())
     {
-        throw std::runtime_error("Cannot open file: " + filename);
+        std::cerr << "Failed to open file: " << filePath << std::endl;
+        return "";
     }
 
-    // Initialize the crypto provider
-    HCRYPTPROV hProv = 0;
-    if (!CryptAcquireContext(&hProv, nullptr, nullptr, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT))
+    auto* state = XXH64_createState();
+    if (!state)
     {
-        throw std::runtime_error("CryptAcquireContext failed");
+        std::cerr << "Failed to create xxHash3 state" << std::endl;
+        return "";
+    }
+   
+    XXH64_reset(state, 0);
+
+    if (filePath.find("barter_assets") != std::string::npos) {
+        auto stop = 213;
+        std::cout << filePath << std::endl;
     }
 
-    // Initialize the MD5 hash object
-    HCRYPTHASH hHash = 0;
-    if (!CryptCreateHash(hProv, CALG_MD5, 0, 0, &hHash))
+    char buffer[4096];
+    while (file.read(buffer, sizeof(buffer)) || file.gcount() > 0)
     {
-        CryptReleaseContext(hProv, 0);
-        throw std::runtime_error("CryptCreateHash failed");
+        auto count = file.gcount();
+        XXH64_update(state, buffer, count);
     }
 
-    // Read and hash file contents
-    char buffer[8192];
-    while (file.good())
-    {
-        file.read(buffer, sizeof(buffer));
-        if (!CryptHashData(hHash, reinterpret_cast<BYTE*>(buffer), file.gcount(), 0))
-        {
-            CryptDestroyHash(hHash);
-            CryptReleaseContext(hProv, 0);
-            throw std::runtime_error("CryptHashData failed");
-        }
-    }
-    file.close();
 
-    // Retrieve the hash value
-    BYTE hash[16];
-    DWORD hashSize = sizeof(hash);
-    if (!CryptGetHashParam(hHash, HP_HASHVAL, hash, &hashSize, 0))
-    {
-        CryptDestroyHash(hHash);
-        CryptReleaseContext(hProv, 0);
-        throw std::runtime_error("CryptGetHashParam failed");
-    }
+     XXH64_hash_t hash = XXH64_digest(state);
+    XXH64_freeState(state);
 
-    // Clean up
-    CryptDestroyHash(hHash);
-    CryptReleaseContext(hProv, 0);
+    std::ostringstream oss;
+    oss << std::hex << std::uppercase << std::setfill('0') << std::setw(16) << hash;
 
-    // Convert the hash to a hex string
-    std::stringstream ss;
-    for (DWORD i = 0; i < hashSize; ++i)
-    {
-        ss << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
-           << static_cast<int>(hash[i]);
-    }
-    return ss.str();
+    return oss.str();
 }
+
 
 void
 ReplaceAll(std::string& str, const std::string& from, const std::string& to)
@@ -192,8 +157,7 @@ ConvertToNarrow(const std::wstring& wstr)
     {
         return std::string();
     }
-    int size_needed =
-        WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, nullptr, 0, nullptr, nullptr);
+    int size_needed = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, nullptr, 0, nullptr, nullptr);
     std::string str(size_needed, 0);
     WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, &str[0], size_needed, nullptr, nullptr);
     str.pop_back();
@@ -212,8 +176,7 @@ GenerateShortGUID()
 
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_int_distribution<> dis(
-        0, sizeof(chars) - 2);  // sizeof(chars) - 2 to avoid null terminator
+    std::uniform_int_distribution<> dis(0, sizeof(chars) - 2);  // sizeof(chars) - 2 to avoid null terminator
 
     for (int i = 0; i < 8; ++i)
     {
@@ -248,20 +211,14 @@ OpenExplorerInCustomDirectory(const std::string& subfolder)
 }
 
 std::string
-ReadIniValue(std::string_view section,
-             std::string_view key,
-             const std::filesystem::path& iniFilePath)
+ReadIniValue(std::string_view section, std::string_view key, const std::filesystem::path& iniFilePath)
 {
     constexpr size_t bufferSize = 256;
     char buffer[bufferSize]{};
     std::span<char> bufferSpan(buffer);
 
-    GetPrivateProfileStringA(section.data(),
-                             key.data(),
-                             "",
-                             bufferSpan.data(),
-                             static_cast<DWORD>(bufferSpan.size()),
-                             iniFilePath.string().c_str());
+    GetPrivateProfileStringA(
+        section.data(), key.data(), "", bufferSpan.data(), static_cast<DWORD>(bufferSpan.size()), iniFilePath.string().c_str());
 
     return std::string(buffer);
 }
@@ -306,73 +263,24 @@ ExtractFilename(const std::string& filePath)
     }
 }
 
-uint32_t
-UpdateCRC32(uint32_t crc, const char* data, std::size_t length)
+class AtomicString
 {
-    crc = ~crc;
-    for (std::size_t i = 0; i < length; ++i)
-    {
-        crc = (crc >> 8) ^ crc32_table[(crc ^ static_cast<uint8_t>(data[i])) & 0xFF];
-    }
-    return ~crc;
-}
+   public:
+    AtomicString(const std::string& initialValue = "") : atomicStringPtr(std::make_shared<std::string>(initialValue)) {}
 
-std::string
-CRC32ToHex(uint32_t crc)
-{
-    std::ostringstream oss;
-    oss << std::hex << std::setw(8) << std::setfill('0') << crc;
-    return oss.str();
-}
-
-uint32_t
-ComputeFileCRC(const fs::path& filePath)
-{
-    std::ifstream fileStream(filePath, std::ios::binary);
-    if (!fileStream)
+    void setString(const std::string& newValue)
     {
-        std::cerr << "Could not open file: " << filePath << std::endl;
-        return 0;
+        atomicStringPtr.store(std::make_shared<std::string>(newValue));
     }
 
-    uint32_t crc = 0xFFFFFFFF;
-    char buffer[4096];
-    while (fileStream.read(buffer, sizeof(buffer)) || fileStream.gcount() > 0)
+    std::string getString() const
     {
-        crc = UpdateCRC32(crc, buffer, fileStream.gcount());
-    }
-    return crc ^ 0xFFFFFFFF;  // Finalize the CRC
-}
-
-std::string
-ComputeDirectoryCRC(const fs::path& directoryPath, std::function<void(std::string)> cb = 0)
-{
-    uint32_t cumulativeCRC = 0xFFFFFFFF;
-
-    for (const auto& entry : fs::directory_iterator(directoryPath))
-    {
-        if (entry.is_regular_file())
-        {
-            const std::string fileName = entry.path().filename().string();
-
-            // Skip  files
-            if (fileName == "version.txt" || fileName == "hash.txt")
-            {
-                continue;
-            }
-
-            // Compute CRC32 for each file and combine it
-            uint32_t fileCRC = ComputeFileCRC(entry.path());
-            if (cb)
-            {
-                cb(entry.path().string());
-            }
-            cumulativeCRC ^= fileCRC;  // XOR to combine CRCs
-        }
+        auto ptr = atomicStringPtr.load();
+        return *ptr;
     }
 
-    // Convert cumulative CRC to a hexadecimal string
-    return CRC32ToHex(cumulativeCRC ^ 0xFFFFFFFF);  // Finalize cumulative CRC
-}
+   private:
+    std::atomic<std::shared_ptr<std::string>> atomicStringPtr;
+};
 
 }  // namespace util

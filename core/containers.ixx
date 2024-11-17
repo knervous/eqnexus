@@ -179,10 +179,7 @@ class ArrayClass2 : public CDynamicArrayBase
         using pointer         = const value_type*;
         using reference       = const value_type&;
 
-        ConstIterator(const ArrayClass2* container, uint32_t index)
-            : m_container(container), m_index(index)
-        {
-        }
+        ConstIterator(const ArrayClass2* container, uint32_t index) : m_container(container), m_index(index) {}
 
         [[nodiscard]] reference operator*() const
         {
@@ -945,9 +942,8 @@ class HashTable
     // Specialization for types convertible to std::string_view but not to const char*
     template <typename U>
     struct HashValue<U,
-                     std::enable_if_t<std::conjunction_v<
-                         std::is_convertible<const U&, std::string_view>,
-                         std::negation<std::is_convertible<const U&, const char*>>>>> {
+                     std::enable_if_t<std::conjunction_v<std::is_convertible<const U&, std::string_view>,
+                                                         std::negation<std::is_convertible<const U&, const char*>>>>> {
         static uint32_t get(const U& key)
         {
             return GetStringCRC(key);
@@ -1000,10 +996,7 @@ class HashTable
         using reference       = HashTable::reference;
         using const_reference = HashTable::const_reference;
 
-        ConstIterator(const HashTable* container, HashEntry* entry)
-            : m_container(container), m_entry(entry)
-        {
-        }
+        ConstIterator(const HashTable* container, HashEntry* entry) : m_container(container), m_entry(entry) {}
 
         [[nodiscard]] const_reference operator*() const
         {
@@ -1358,8 +1351,7 @@ HashTable<T, Key, ResizePolicy>::FindFirstEntry(const Key& key) const
 
 template <typename T, typename Key, typename ResizePolicy>
 typename HashTable<T, Key, ResizePolicy>::HashEntry*
-HashTable<T, Key, ResizePolicy>::FindNextEntry(
-    typename HashTable<T, Key, ResizePolicy>::HashEntry* previousResult) const
+HashTable<T, Key, ResizePolicy>::FindNextEntry(typename HashTable<T, Key, ResizePolicy>::HashEntry* previousResult) const
 {
     HashEntry* entry     = previousResult;
     HashEntry* nextEntry = entry->next;
@@ -1390,8 +1382,7 @@ HashTable<T, Key, ResizePolicy>::WalkFirstEntry() const
 
 template <typename T, typename Key, typename ResizePolicy>
 typename HashTable<T, Key, ResizePolicy>::HashEntry*
-HashTable<T, Key, ResizePolicy>::WalkNextEntry(
-    typename HashTable<T, Key, ResizePolicy>::HashEntry* previousResult) const
+HashTable<T, Key, ResizePolicy>::WalkNextEntry(typename HashTable<T, Key, ResizePolicy>::HashEntry* previousResult) const
 {
     HashEntry* entry = previousResult;
     int slot         = hash_value<Key>(entry->key()) % m_tableSize;
@@ -2296,8 +2287,7 @@ class HashListMap<KeyT, T, TableSize, -1>
 
     Node* NodeGet(const T* cur) const
     {
-        return (Node*) ((uint8_t*) cur -
-                        (size_t) ((uint8_t*) (&((Node*) 1)->value()) - (uint8_t*) 1));
+        return (Node*) ((uint8_t*) cur - (size_t) ((uint8_t*) (&((Node*) 1)->value()) - (uint8_t*) 1));
     }
 
     T* GetFirst() const

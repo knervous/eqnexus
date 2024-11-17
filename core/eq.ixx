@@ -93,15 +93,14 @@ export struct LoginBaseMessage_Struct {
     int32_t sequence;  // request type/login sequence (2: handshake, 3: login, 4: serverlist, ...)
     bool compressed;
     int8_t encrypt_type;
-    int32_t unk3;  
+    int32_t unk3;
 };
-
 
 export struct LoginBaseReplyMessage_Struct {
     bool success;          // 0: failure (shows error string) 1: success
     int32_t error_str_id;  // last error eqlsstr id, default: 101 (no error)
-    char str[1];  // variable length, unknown (may be unused, this struct is a common pattern
-                  // elsewhere)
+    char str[1];           // variable length, unknown (may be unused, this struct is a common pattern
+                           // elsewhere)
 };
 
 export struct PlayEverquestResponse_Struct {

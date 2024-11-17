@@ -134,23 +134,13 @@ export class OptionsConfig
     inline static std::vector<HookSet> Hooks;
     inline static std::unordered_map<std::string, std::function<void()>> optionHandlers = {
         {"restoreGammaOnCrash", []() {}},
-        {"disableMapWindow",
-         []() { Options.emplace_back(std::make_unique<NoOpConfig>(0x2CF4A0)); }},
+        {"disableMapWindow", []() { Options.emplace_back(std::make_unique<NoOpConfig>(0x2CF4A0)); }},
         {"disableLuclinModels",
          []() {
-             using load_settings_t                       = uintptr_t(__cdecl*)(char* lpAppName,
-                                                         char* lpKeyName,
-                                                         char* lpDefault,
-                                                         char* lpReturnedString,
-                                                         size_t nSize,
-                                                         char* lpFileName);
+             using load_settings_t = uintptr_t(__cdecl*)(
+                 char* lpAppName, char* lpKeyName, char* lpDefault, char* lpReturnedString, size_t nSize, char* lpFileName);
              static load_settings_t OriginalLoadSettings = 0;
-             auto load_settings_hook                     = [](char* name,
-                                          char* key,
-                                          char* default_,
-                                          char* returned,
-                                          size_t size,
-                                          char* filename) -> uintptr_t {
+             auto load_settings_hook = [](char* name, char* key, char* default_, char* returned, size_t size, char* filename) -> uintptr_t {
                  if (strcmp(name, "Defaults") != 0)
                  {
                      return OriginalLoadSettings(name, key, default_, returned, size, filename);
@@ -163,13 +153,11 @@ export class OptionsConfig
                  }
                  return OriginalLoadSettings(name, key, default_, returned, size, filename);
              };
-             Hooks.push_back(
-                 HookSet{reinterpret_cast<LPVOID>(eqlib::EQGameBaseAddress + 0x460EF0),
-                         reinterpret_cast<LPVOID>(static_cast<load_settings_t>(load_settings_hook)),
-                         reinterpret_cast<LPVOID*>(&OriginalLoadSettings)});
+             Hooks.push_back(HookSet{reinterpret_cast<LPVOID>(eqlib::EQGameBaseAddress + 0x460EF0),
+                                     reinterpret_cast<LPVOID>(static_cast<load_settings_t>(load_settings_hook)),
+                                     reinterpret_cast<LPVOID*>(&OriginalLoadSettings)});
          }},
-        {"disableBazaarWindow",
-         []() { Options.emplace_back(std::make_unique<NoOpConfig>(0x236670)); }},
+        {"disableBazaarWindow", []() { Options.emplace_back(std::make_unique<NoOpConfig>(0x236670)); }},
         {"disableHeroic",
          []() {
              Options.emplace_back(std::make_unique<PatchConfig>(PatchList{

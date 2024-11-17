@@ -15,6 +15,10 @@ export class D3D9Hooks
    public:
     static bool Init()
     {
+        if (initialized) {
+            return true;
+        }
+        initialized = true;
         if (auto hD3D9 = GetModuleHandle(L"d3d9.dll"); hD3D9)
         {
             pDirect3DCreate9 = GetProcAddress(hD3D9, "Direct3DCreate9");
@@ -34,18 +38,7 @@ export class D3D9Hooks
         auto Direct3DCreate9    = reinterpret_cast<Direct3DCreate9_t>(pDirect3DCreate9);
         if (auto pD3D9 = Direct3DCreate9(D3D_SDK_VERSION); pD3D9)
         {
-            HWND hwnd = CreateWindowEx(0,
-                                       L"STATIC",
-                                       nullptr,
-                                       WS_OVERLAPPEDWINDOW,
-                                       0,
-                                       0,
-                                       100,
-                                       100,
-                                       nullptr,
-                                       nullptr,
-                                       nullptr,
-                                       nullptr);
+            HWND hwnd = CreateWindowEx(0, L"STATIC", nullptr, WS_OVERLAPPEDWINDOW, 0, 0, 100, 100, nullptr, nullptr, nullptr, nullptr);
 
             D3DPRESENT_PARAMETERS d3dpp{};
             d3dpp.Windowed      = TRUE;
@@ -53,12 +46,8 @@ export class D3D9Hooks
             d3dpp.hDeviceWindow = hwnd;
 
             IDirect3DDevice9* pDummyDevice = nullptr;
-            if (HRESULT hr = pD3D9->CreateDevice(D3DADAPTER_DEFAULT,
-                                                 D3DDEVTYPE_HAL,
-                                                 hwnd,
-                                                 D3DCREATE_SOFTWARE_VERTEXPROCESSING,
-                                                 &d3dpp,
-                                                 &pDummyDevice);
+            if (HRESULT hr = pD3D9->CreateDevice(
+                    D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hwnd, D3DCREATE_SOFTWARE_VERTEXPROCESSING, &d3dpp, &pDummyDevice);
                 SUCCEEDED(hr) && pDummyDevice)
             {
                 auto vtable = *reinterpret_cast<void***>(pDummyDevice);
@@ -115,15 +104,11 @@ export class D3D9Hooks
         DisableHook(original_beginscene);
         DisableHook(original_reset);
 
-        render_callback = nullptr;
-        reset_callback  = nullptr;
-
         std::cout << "D3D9 hooks and resources have been successfully torn down." << std::endl;
     }
 
    private:
-    using Reset_t      = HRESULT(WINAPI*)(IDirect3DDevice9* device,
-                                     D3DPRESENT_PARAMETERS* pPresentationParameters);
+    using Reset_t      = HRESULT(WINAPI*)(IDirect3DDevice9* device, D3DPRESENT_PARAMETERS* pPresentationParameters);
     using BeginScene_t = HRESULT(WINAPI*)(IDirect3DDevice9* device);
 
     static bool CreateHook(void* target, void* detour, auto& original)
@@ -147,6 +132,7 @@ export class D3D9Hooks
             MH_DisableHook(reinterpret_cast<void*>(original));
             MH_RemoveHook(reinterpret_cast<void*>(original));
         }
+        initialized = false;
     }
 
     static HRESULT WINAPI HookedBeginScene(IDirect3DDevice9* device)
@@ -159,8 +145,7 @@ export class D3D9Hooks
         return original_beginscene(device);
     }
 
-    static HRESULT WINAPI HookedReset(IDirect3DDevice9* device,
-                                      D3DPRESENT_PARAMETERS* pPresentationParameters)
+    static HRESULT WINAPI HookedReset(IDirect3DDevice9* device, D3DPRESENT_PARAMETERS* pPresentationParameters)
     {
         if (!original_reset)
             return 0;
@@ -177,4 +162,5 @@ export class D3D9Hooks
     inline static BeginScene_t original_beginscene = nullptr;
     inline static DeviceCallback render_callback   = nullptr;
     inline static DeviceCallback reset_callback    = nullptr;
+    inline static bool initialized                 = false;
 };

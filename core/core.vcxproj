@@ -209,6 +209,7 @@
     <ClCompile Include="overlay.ixx" />
     <ClCompile Include="server.ixx" />
     <ClCompile Include="server_info.ixx" />
+    <ClCompile Include="threadpool.ixx" />
     <ClCompile Include="utility.ixx" />
     <ClCompile Include="zip.ixx" />
     <ClCompile Include="zone.ixx" />

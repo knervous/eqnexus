@@ -2,16 +2,12 @@
     "version": "1.0.0",
     "servers": [
         {
-            "name": "Requiem",
-            "manifest": "https://eqrequiem.blob.core.windows.net/assets/manifest_requiem.json"
-        },
-        {
             "name": "The Heroes' Journey",
-            "manifest": "https://eqrequiem.blob.core.windows.net/assets/manifest_thj.json"
+            "manifest": "https://github.com/knervous/eqemupatcher/releases/latest/download/manifest.json"
         },
         {
-            "name": "Wayfarers Haven",
-            "manifest": "https://eqrequiem.blob.core.windows.net/assets/manifest_wfh.json"
+            "name": "Requiem [DEV]",
+            "manifest": "https://eqrequiem.blob.core.windows.net/assets/manifest_requiem.json"
         }
     ]
 }

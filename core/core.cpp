@@ -49,7 +49,6 @@ SetupCore()
     }
 
     Hooks::Init([]() {
-        D3D9Hooks::Init();
         Login::Init();
         Server::Init();
         FileSystem::Init();
@@ -107,7 +106,6 @@ Teardown()
     {
         return true;
     }
-    D3D9Hooks::Teardown();
     eqoverlay.reset();
     did_init = false;
     Server::Teardown();

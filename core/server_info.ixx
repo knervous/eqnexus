@@ -7,6 +7,7 @@ import utility;
 import login;
 import nk;
 import login_frontend;
+import threadpool;
 
 import "nuklear_d3d9.h";
 import <windows.h>;
@@ -17,6 +18,7 @@ import <thread>;
 import <filesystem>;
 import <iostream>;
 import <fstream>;
+import <chrono>;
 import <memory>;
 import <rapidjson/document.h>;
 import <rapidjson/prettywriter.h>;
@@ -36,6 +38,7 @@ export class ServerInfo
                const std::string& website                         = "",
                const std::string& description                     = "",
                std::vector<std::string> hosts                     = {},
+               std::vector<std::string> required                  = {},
                std::unordered_map<std::string, std::string> files = {})
         : shortName(shortname)
         , longName(longname)
@@ -45,6 +48,7 @@ export class ServerInfo
         , website(website)
         , description(description)
         , hosts(hosts)
+        , required(required)
         , files(files)
     {
     }
@@ -65,13 +69,13 @@ export class ServerInfo
         , website(std::move(other.website))
         , description(std::move(other.description))
         , hosts(std::move(other.hosts))
+        , required(std::move(other.required))
         , files(std::move(other.files))
         , up_to_date(other.up_to_date)
         , downloading(other.downloading)
         , ran_validation(other.ran_validation)
         , running_validation(other.running_validation)
         , filesUrlPrefix(other.filesUrlPrefix)
-        , validation_status(std::move(other.validation_status))
         , error(std::move(other.error))
         , pct_downloaded(other.pct_downloaded)
         , status(std::move(other.status))
@@ -141,10 +145,41 @@ export class ServerInfo
         return running_validation;
     }
 
-    void ValidateConfig() {}
-
     void ValidateInstallAsync(bool blocking = false)
     {
+        if (blocking)
+        {
+            bool result           = true;
+            const auto& root_path = "eqnexus/" + shortName;
+            fs::path path(root_path);
+
+            for (const auto& [file, hash] : files)
+            {
+                for (const auto& required_file : required)
+                {
+                    if (file == required_file)
+                    {
+                        auto filePath = path / file;
+                        if (!fs::exists(filePath))
+                        {
+                            result = false;
+                            break;
+                        }
+
+                        auto fileHash = util::GenerateFileHash(filePath.string());
+                        if (fileHash != hash)
+                        {
+                            result = false;
+                            break;
+                        }
+                    }
+                }
+            }
+            up_to_date     = result;
+            ran_validation = true;
+            return;
+        }
+
         if (running_validation)
             return;
 
@@ -152,44 +187,41 @@ export class ServerInfo
 
         auto validation_task = [this]() mutable {
             const auto& root_path = "eqnexus/" + shortName;
-            fs::path hash_path    = root_path + "/hash.txt";
             fs::path version_path = root_path + "/version.txt";
-            validation_status     = "Checking patch files...";
-            bool result           = true;
+            validation_status.setString("Checking patch files...");
+            bool result = true;
+            std::string stored_version;
+            std::ifstream version_file(version_path);
+            version_file >> stored_version;
 
-            // Servers don't have to provide file hashes, but if they do, that's what we check
-            if (files.size() > 0)
+            if (!fs::exists(root_path) || !fs::exists(version_path) || version != stored_version)
             {
+                result = false;
+                for (const auto& pair : files)
+                {
+                    outOfDateFiles.push_back(pair.first);
+                }
             }
             else
             {
-                if (!fs::exists(root_path) || !fs::exists(hash_path) || !fs::exists(version_path))
+                if (files.size() > 0)
                 {
-                    result = false;
-                }
-                else
-                {
-                    std::string current_checksum =
-                        util::ComputeDirectoryCRC(root_path, [this](const std::string& path) {
-                            validation_status =
-                                util::Interpolate("Checking {}", util::ExtractFilename(path));
-                        });
-                    std::string stored_checksum;
-                    std::ifstream hash_file(hash_path);
-                    hash_file >> stored_checksum;
-
-                    if (current_checksum != stored_checksum)
+                    for (const auto& [file, hash] : files)
                     {
-                        result = false;
-                    }
-                    else
-                    {
-                        std::string stored_version;
-                        std::ifstream version_file(version_path);
-                        version_file >> stored_version;
-                        if (version != stored_version)
+                        fs::path path(root_path);
+                        validation_status.setString(util::Interpolate("Checking {}", util::ExtractFilename(file)));
+                        auto filePath = path / file;
+                        if (!fs::exists(filePath))
                         {
                             result = false;
+                            outOfDateFiles.push_back(file);
+                        }
+
+                        auto fileHash = util::GenerateFileHash(filePath.string());
+                        if (fileHash != hash)
+                        {
+                            result = false;
+                            outOfDateFiles.push_back(file);
                         }
                     }
                 }
@@ -200,30 +232,19 @@ export class ServerInfo
             running_validation = false;
         };
 
-        if (blocking)
-        {
-            validation_task();
-        }
-        else
-        {
-            validation_thread = std::thread(
-                [validation_task = std::move(validation_task)]() mutable { validation_task(); });
-            validation_thread.detach();
-        }
+        validation_thread = std::thread([validation_task = std::move(validation_task)]() mutable { validation_task(); });
+        validation_thread.detach();
     }
 
     void DrawListItem(nk_context* ctx, bool& task_running)
     {
         CheckClientServer();
-        nk_util::DrawSeparator(ctx);
         nk_layout_row_dynamic(ctx, 20, 2);
         if (nk_widget_is_hovered(ctx))
         {
             nk_tooltip(ctx, longName.c_str());
         }
-        nk_label(ctx,
-                 nk_util::TruncateTextWithEllipsis(ctx, longName.c_str(), 200.0f).c_str(),
-                 NK_TEXT_LEFT);
+        nk_label(ctx, nk_util::TruncateTextWithEllipsis(ctx, longName.c_str(), 200.0f).c_str(), NK_TEXT_LEFT);
         if (nk_button_label(ctx, "Server Info"))
         {
             Login::OpenModal(util::Interpolate(R"(
@@ -244,23 +265,17 @@ export class ServerInfo
         if (downloading)
         {
             nk_layout_row_dynamic(ctx, 25, 1);
-            nk_label(
-                ctx,
-                util::Interpolate(
-                    "Downloading: {} ({}/{})", download_file, download_files, download_files_total)
-                    .c_str(),
-                NK_TEXT_LEFT);
-            nk_layout_row_dynamic(ctx, 25, 1);
             nk_label(ctx,
-                     util::Interpolate("{}% complete", util::ToStringWithPrecision(pct_downloaded))
-                         .c_str(),
-                     NK_TEXT_CENTERED);
+                     util::Interpolate("Downloading: {} ({}/{})", download_file, download_files, download_files_total).c_str(),
+                     NK_TEXT_LEFT);
+            nk_layout_row_dynamic(ctx, 25, 1);
+            nk_label(ctx, util::Interpolate("{}% complete", util::ToStringWithPrecision(pct_downloaded)).c_str(), NK_TEXT_CENTERED);
         }
 
         if (running_validation)
         {
             nk_layout_row_dynamic(ctx, 25, 1);
-            nk_label(ctx, validation_status.c_str(), NK_TEXT_LEFT);
+            nk_label(ctx, validation_status.getString().c_str(), NK_TEXT_LEFT);
         }
         else if (!ran_validation)
         {
@@ -307,6 +322,7 @@ export class ServerInfo
                 nk_util::RenderDisabledButton(ctx, "Offline");
             }
         }
+        nk_util::DrawSeparator(ctx);
     }
 
     bool SerializeManifest(const std::string& filename)
@@ -332,12 +348,17 @@ export class ServerInfo
         }
         document.AddMember("hosts", hostsArray, allocator);
 
+        Value requiredArray(kArrayType);
+        for (const auto& required_file : required)
+        {
+            requiredArray.PushBack(Value(required_file.c_str(), allocator), allocator);
+        }
+        document.AddMember("required", requiredArray, allocator);
+
         Value filesObject(kObjectType);
         for (const auto& file : files)
         {
-            filesObject.AddMember(Value(file.first.c_str(), allocator),
-                                  Value(file.second.c_str(), allocator),
-                                  allocator);
+            filesObject.AddMember(Value(file.first.c_str(), allocator), Value(file.second.c_str(), allocator), allocator);
         }
         document.AddMember("files", filesObject, allocator);
 
@@ -392,22 +413,23 @@ export class ServerInfo
             auto file   = util::OpenFileDialog();
             if (!file.empty())
             {
-                zipextractor::ProcessZipFileWithCRC32(
-                    file, [&server, &cb](const std::string& name, const std::string& crc) {
-                        server.AddFileCRC(name, crc);
-                        cb(std::move(name));
-                    });
+                zipextractor::ProcessZipFileWithHash(file, [&server, &cb](const std::string& name, const std::string& hash) {
+                    server.AddFileCRC(name, hash);
+                    cb(std::move(name));
+                });
                 cb("");
                 util::ReplaceAll(file, "zip", "json");
                 fs::path filePath(file);
-                const fs::path outputPath = filePath.parent_path() / "generated.json";
+                const fs::path outputPath =
+                    filePath.parent_path() /
+                    (server.GetShortName().empty() ? "generated.json" : ("generated_" + server.GetShortName() + ".json"));
                 fs::remove(outputPath);
                 auto outPath = outputPath.string();
                 if (server.SerializeManifest(outPath))
                 {
                     Login::OpenModal(
                         util::Interpolate("Successfully created server manifest JSON file: <a "
-                                          "href=\"file:///{}\">{}</a>",
+                                          "href=\"file:///{}\" target=\"_blank\">{}</a>",
                                           outPath,
                                           outPath));
                 }
@@ -430,6 +452,8 @@ export class ServerInfo
     std::string website                                = "";
     std::string description                            = "";
     std::vector<std::string> hosts                     = {};
+    std::vector<std::string> required                  = {};
+    std::vector<std::string> outOfDateFiles            = {};
     std::unordered_map<std::string, std::string> files = {};
 
     // Lifetime attributes
@@ -438,22 +462,18 @@ export class ServerInfo
     bool downloading                        = false;
     bool ran_validation                     = false;
     bool running_validation                 = false;
-    bool download_files                     = 0;
-    bool download_files_total               = 0;
+    int download_files                      = 0;
+    int download_files_total                = 0;
     std::string download_file               = "";
     std::thread validation_thread;
-    std::string validation_status = "";
-    std::string error             = "";
-    double pct_downloaded         = 0.0;
-    std::string status            = "";
+    util::AtomicString validation_status;
+    std::string error     = "";
+    double pct_downloaded = 0.0;
+    std::string status    = "";
 
     void WriteHashAndVersion()
     {
         const auto& root_path = "eqnexus/" + shortName;
-        const auto hash       = util::ComputeDirectoryCRC(root_path);
-        fs::path hash_path    = root_path + "/hash.txt";
-        std::ofstream hash_out(hash_path, std::ios::trunc);
-        hash_out << hash;
         fs::path version_path = root_path + "/version.txt";
         std::ofstream version_out(version_path, std::ios::trunc);
         version_out << version;
@@ -480,38 +500,47 @@ export class ServerInfo
 
     void DownloadServerFilesTask(bool& task_running)
     {
-        if (customFilesUrl.empty())
+        if (customFilesUrl.empty() && files.size() == 0)
         {
-            error        = "No URL defined";
+            Login::OpenModal("No Custom Zip URL defined");
             task_running = false;
             return;
         }
 
+        if (files.size() > 0)
+        {
+            if (filesUrlPrefix.empty())
+            {
+                error        = "No URL defined";
+                task_running = false;
+                Login::OpenModal("No URL prefix defined");
+                return;
+            }
+        }
+
         const auto path = "eqnexus/" + shortName;
-        if (!fs::exists(path) && !fs::create_directories(path))
+        bool exists     = fs::exists(path);
+        if (!exists && !fs::create_directories(path))
         {
             Login::OpenModal("Filesystem Error. Unable to create directory: " + path);
             task_running = false;
             return;
         }
-        downloading    = true;
-        download_files = 1;
 
-        // Download whole package if files aren't specified
-        if (files.size() == 0)
+        // Download whole package if directory doesn't exist yet
+        if (!exists)
         {
+            downloading          = true;
+            download_files       = 1;
             auto zip_path        = path + "/" + shortName + ".zip";
             download_files_total = 1;
             download_file        = util::ExtractFilename(customFilesUrl);
-            if (http::DownloadBinary(
-                    customFilesUrl, zip_path, [this](double pct) { pct_downloaded = pct; }))
+            if (http::DownloadBinary(customFilesUrl, zip_path, [this](double pct) { pct_downloaded = pct; }))
             {
                 downloading = false;
 
                 if (zipextractor::ExtractAllFilesFromZip(zip_path,
-                                                         [this](const std::string& filename) {
-                                                             status = "Extracting " + filename;
-                                                         }) &&
+                                                         [this](const std::string& filename) { status = "Extracting " + filename; }) &&
                     fs::remove(zip_path))
                 {
                     WriteHashAndVersion();
@@ -526,6 +555,25 @@ export class ServerInfo
                 error = "HTTP Failure";
             }
         }
+        else
+        {
+            downloading          = true;
+            download_files_total = outOfDateFiles.size();
+
+            ThreadPool pool(std::thread::hardware_concurrency());
+            for (const auto& file : outOfDateFiles)
+            {
+                pool.enqueue([this, file, path]() {
+                    const auto& file_path = path + "/" + file;
+                    const auto& url       = filesUrlPrefix + "/" + file;
+                    http::DownloadBinary(url, file_path);
+                    download_files++;
+                    pct_downloaded = 100 * (static_cast<double>(download_files) / static_cast<double>(download_files_total));
+                });
+            }
+            pool.wait();
+            WriteHashAndVersion();
+        }
 
         status               = "";
         downloading          = false;
@@ -533,6 +581,7 @@ export class ServerInfo
         download_files_total = 0;
         download_file        = "";
         pct_downloaded       = 0.0;
+        outOfDateFiles.clear();
         ValidateInstallAsync();
         task_running = false;
     }

@@ -106,10 +106,7 @@ class LoginServerCallback
     virtual void OnPlayerLogin(bool, int, CXStr, void*, void*) {}
     virtual void OnGetServerList(bool, int, CXStr, void*, void*) {}
     virtual void OnJoinServer(bool, int, CXStr, int, void*) {}
-    virtual void OnJoinChat(
-        bool, int, CXStr, CXStr&, int, CXStr&, CXStr&, CXStr&, CXStr&, int, void*)
-    {
-    }
+    virtual void OnJoinChat(bool, int, CXStr, CXStr&, int, CXStr&, CXStr&, CXStr&, CXStr&, int, void*) {}
     virtual void OnSetGMList(void*) {}
     virtual void OnModifyGMList(void*, void*) {}
     virtual void OnJoinAdminChannel(bool, int, CXStr, CXStr&, CXStr, void*) {}

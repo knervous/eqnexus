@@ -878,8 +878,7 @@ export constexpr uint32_t Spellmanager__LoadTextSpells_x         = 0x5C1C30;
 export constexpr uint32_t SpellManager__GetSpellByGroupAndRank_x = 0x5C1AE0;
 
 // CCollisionInfoTargetVisibility
-export constexpr uint32_t CCollisionInfoTargetVisibility__CCollisionInfoTargetVisibility_x =
-    0x8D4570;
+export constexpr uint32_t CCollisionInfoTargetVisibility__CCollisionInfoTargetVisibility_x = 0x8D4570;
 
 // CLargeDialogWnd
 export constexpr uint32_t CLargeDialogWnd__Open_x = 0x6B4EE0;

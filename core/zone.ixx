@@ -20,9 +20,7 @@ AssignIfPresent(const rapidjson::Value::ConstObject& obj, const char* fieldName,
 }
 
 void
-AssignIfPresent(const rapidjson::Value::ConstObject& obj,
-                const char* fieldName,
-                std::string& target)
+AssignIfPresent(const rapidjson::Value::ConstObject& obj, const char* fieldName, std::string& target)
 {
     if (obj.HasMember(fieldName) && obj[fieldName].IsString())
     {
@@ -70,10 +68,7 @@ using zone_entry_add_t  = uintptr_t(__fastcall*)(uintptr_t This,
                                                 int x,
                                                 int y,
                                                 int z);
-using get_tablestring_t = const char*(__fastcall*) (uintptr_t This,
-                                                    uintptr_t Reg,
-                                                    int entry,
-                                                    void* data);
+using get_tablestring_t = const char*(__fastcall*) (uintptr_t This, uintptr_t Reg, int entry, void* data);
 
 export class ZoneConfig
 {
@@ -86,8 +81,7 @@ export class ZoneConfig
             {
                 if (value.IsObject())
                 {
-                    AddZones.push_back(
-                        CreateZoneConfig(value.GetObj(), {0, -1, "", "", 1, 0, 0, 0, 0}));
+                    AddZones.push_back(CreateZoneConfig(value.GetObj(), {0, -1, "", "", 1, 0, 0, 0, 0}));
                 }
             }
         }
@@ -100,8 +94,7 @@ export class ZoneConfig
                 const auto& value     = member.value;
                 if (value.IsObject())
                 {
-                    UpdateZones.push_back(
-                        CreateZoneConfig(value.GetObj(), {-1, -1, key, "", -1, -1, -1, -1, -1}));
+                    UpdateZones.push_back(CreateZoneConfig(value.GetObj(), {-1, -1, key, "", -1, -1, -1, -1, -1}));
                 }
             }
         }
@@ -207,28 +200,23 @@ export class ZoneConfig
             {
                 // -1 is sentinel value for default values, i.e. take what we already have provided,
                 // otherwise take the provided value
-                return Original_ZoneEntryCtor(
-                    This,
-                    Reg,
-                    entry.zoneType != -1 ? entry.zoneType : zone_type,
-                    entry.zoneId != -1 ? entry.zoneId : zone_id,
-                    short_name,
-                    !entry.longName.empty() ? entry.longName.c_str() : long_name,
-                    !entry.longName.empty() ? GetOrCreateString(entry.longName) : str_id,
-                    entry.flags != -1 ? entry.flags : zone_flags,
-                    entry.x != -1 ? entry.x : x,
-                    entry.y != -1 ? entry.y : y,
-                    entry.z != -1 ? entry.z : z);
+                return Original_ZoneEntryCtor(This,
+                                              Reg,
+                                              entry.zoneType != -1 ? entry.zoneType : zone_type,
+                                              entry.zoneId != -1 ? entry.zoneId : zone_id,
+                                              short_name,
+                                              !entry.longName.empty() ? entry.longName.c_str() : long_name,
+                                              !entry.longName.empty() ? GetOrCreateString(entry.longName) : str_id,
+                                              entry.flags != -1 ? entry.flags : zone_flags,
+                                              entry.x != -1 ? entry.x : x,
+                                              entry.y != -1 ? entry.y : y,
+                                              entry.z != -1 ? entry.z : z);
             }
         }
-        return Original_ZoneEntryCtor(
-            This, Reg, zone_type, zone_id, short_name, long_name, str_id, zone_flags, x, y, z);
+        return Original_ZoneEntryCtor(This, Reg, zone_type, zone_id, short_name, long_name, str_id, zone_flags, x, y, z);
     }
 
-    static const char* __fastcall GetTableString(uintptr_t This,
-                                                 uintptr_t Reg,
-                                                 int entry,
-                                                 void* data)
+    static const char* __fastcall GetTableString(uintptr_t This, uintptr_t Reg, int entry, void* data)
     {
         if (StringTableMap.contains(entry))
         {

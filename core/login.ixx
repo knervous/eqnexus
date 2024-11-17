@@ -5,6 +5,7 @@ import globals;
 import config;
 import server;
 import eq;
+import d3d9_hooks;
 
 import <Windows.h>;
 import <MinHook.h>;
@@ -19,19 +20,11 @@ import <thread>;
 
 using login_callback_t    = std::function<bool(int)>;
 using login_char_select_t = void(__fastcall*)(uintptr_t This, uintptr_t Reg);
-using do_login_t          = int(__fastcall*)(
-    uintptr_t This, uintptr_t Reg, int server_id, uintptr_t user_data, int timeout);
-using show_msg_t = void(__fastcall*)(
-    uintptr_t This, uintptr_t Reg, void* a2, int a3, volatile signed int* a4, void* a5, void* a6);
-using process_packet_t  = void(__fastcall*)(uintptr_t This,
-                                           uintptr_t Reg,
-                                           unsigned char* data,
-                                           uintptr_t a2);
-using get_tablestring_t = const char*(__fastcall*) (uintptr_t This,
-                                                    uintptr_t Reg,
-                                                    int entry,
-                                                    void* data);
-using load_eqmain       = int(__cdecl*)();
+using do_login_t          = int(__fastcall*)(uintptr_t This, uintptr_t Reg, int server_id, uintptr_t user_data, int timeout);
+using show_msg_t          = void(__fastcall*)(uintptr_t This, uintptr_t Reg, void* a2, int a3, volatile signed int* a4, void* a5, void* a6);
+using process_packet_t    = void(__fastcall*)(uintptr_t This, uintptr_t Reg, unsigned char* data, uintptr_t a2);
+using get_tablestring_t   = const char*(__fastcall*) (uintptr_t This, uintptr_t Reg, int entry, void* data);
+using load_eqmain         = int(__cdecl*)();
 
 export class Login
 {
@@ -54,6 +47,11 @@ export class Login
         NextUnknownMessage = msg;
     }
 
+    static const bool InCharSelect()
+    {
+        return LoggedIntoCharSelect;
+    }
+
     static void LoginToServer(int server_id)
     {
         DoLogin((uintptr_t) eqlib::g_pLoginServerAPI.get(), 0, server_id, 0, 10);
@@ -65,8 +63,7 @@ export class Login
             return;
         int buffer = -1;
         // This is the original "Open this SIDL dialog"
-        ((show_msg_t) (eqlib::EQMainBaseAddress + 0xBBE0))(
-            DialogInstance, NULL, NULL, GetOrCreateString(msg), &buffer, nullptr, nullptr);
+        ((show_msg_t) (eqlib::EQMainBaseAddress + 0xBBE0))(DialogInstance, NULL, NULL, GetOrCreateString(msg), &buffer, nullptr, nullptr);
         // This prevents a check that results in ResetDevice crash, wtf this works.
         uintptr_t MgrInstance = *reinterpret_cast<uintptr_t*>(eqlib::EQMainBaseAddress + 0x150170);
         if (MgrInstance)
@@ -77,15 +74,14 @@ export class Login
 
     static void SetupHooks()
     {
+        D3D9Hooks::Init();
         if (!eqlib::InitializeEQMainOffsets())
         {
             std::cout << "Did not set up hooks ret false" << std::endl;
             return;
         }
         Hooks = {
-            {reinterpret_cast<LPVOID>(eqlib::EQMainBaseAddress + 0x13C30),
-             &Login::DoLogin,
-             reinterpret_cast<LPVOID*>(&Original_DoLogin)},
+            {reinterpret_cast<LPVOID>(eqlib::EQMainBaseAddress + 0x13C30), &Login::DoLogin, reinterpret_cast<LPVOID*>(&Original_DoLogin)},
             {reinterpret_cast<LPVOID>(eqlib::EQMainBaseAddress + 0x148F0),
              &Login::ProcessPacket,
              reinterpret_cast<LPVOID*>(&Original_ProcessPacket)},
@@ -114,6 +110,7 @@ export class Login
             MH_DisableHook(target);
             MH_RemoveHook(target);
         }
+        D3D9Hooks::Teardown();
         Hooks.clear();
         DialogInstance       = 0;
         LoggedIntoCharSelect = false;
@@ -122,9 +119,7 @@ export class Login
     static void Init()
     {
         BaseHooks = {
-            {reinterpret_cast<LPVOID>(eqlib::EQGameBaseAddress + 0x1F8E90),
-             &LoadEQMain,
-             reinterpret_cast<LPVOID*>(&Original_LoadEQMain)},
+            {reinterpret_cast<LPVOID>(eqlib::EQGameBaseAddress + 0x1F8E90), &LoadEQMain, reinterpret_cast<LPVOID*>(&Original_LoadEQMain)},
         };
         for (const auto& [target, detour, original] : BaseHooks)
         {
@@ -171,10 +166,7 @@ export class Login
         return Original_LoginToCharSelect(This, Reg);
     }
 
-    static const char* __fastcall GetTableString(uintptr_t This,
-                                                 uintptr_t Reg,
-                                                 int entry,
-                                                 void* data)
+    static const char* __fastcall GetTableString(uintptr_t This, uintptr_t Reg, int entry, void* data)
     {
         for (const auto& [key, value] : StringTableMap)
         {
@@ -186,10 +178,7 @@ export class Login
         return Original_GetTableString(This, Reg, entry, data);
     }
 
-    static void __fastcall ProcessPacket(uintptr_t This,
-                                         uintptr_t Reg,
-                                         unsigned char* data,
-                                         uintptr_t a2)
+    static void __fastcall ProcessPacket(uintptr_t This, uintptr_t Reg, unsigned char* data, uintptr_t a2)
     {
         // This offset is the instance of some class related to SIDL manager that's stored within
         // the loginServerAPI (This) and we need to dereference it to find out where it is.
@@ -232,8 +221,7 @@ export class Login
         Original_ProcessPacket(This, Reg, data, a2);
     }
 
-    static uintptr_t __fastcall DoLogin(
-        uintptr_t This, uintptr_t Reg, int server_id, uintptr_t user_data, int timeout)
+    static uintptr_t __fastcall DoLogin(uintptr_t This, uintptr_t Reg, int server_id, uintptr_t user_data, int timeout)
     {
         if (eqlib::g_pLoginClient && LoginCallback && LoginCallback(server_id))
         {

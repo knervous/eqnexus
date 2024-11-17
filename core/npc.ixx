@@ -18,13 +18,8 @@ struct NpcConfigEntry {
     int dbStrId;
 };
 
-using add_npc_t          = uintptr_t(__fastcall*)(uintptr_t This,
-                                         uintptr_t Reg,
-                                         int raceId,
-                                         int genderId,
-                                         const char* modelName,
-                                         int raceMask,
-                                         int dbStrId);
+using add_npc_t =
+    uintptr_t(__fastcall*)(uintptr_t This, uintptr_t Reg, int raceId, int genderId, const char* modelName, int raceMask, int dbStrId);
 using npc_manager_ctor_t = uintptr_t(__fastcall*)(uintptr_t This, uintptr_t Reg);
 
 export class NpcConfig
@@ -38,8 +33,7 @@ export class NpcConfig
             {
                 continue;
             }
-            if (!value["raceId"].IsInt() || !value["genderId"].IsInt() ||
-                !value["modelName"].IsString() || !value["raceMask"].IsInt() ||
+            if (!value["raceId"].IsInt() || !value["genderId"].IsInt() || !value["modelName"].IsString() || !value["raceMask"].IsInt() ||
                 !value["dbStrId"].IsInt())
             {
                 continue;
@@ -98,13 +92,7 @@ export class NpcConfig
         // Then we can call AddNpc
         for (const auto& entry : AddNpcs)
         {
-            Original_AddNpc(mgr,
-                            0,
-                            entry.raceId,
-                            entry.genderId,
-                            entry.modelName.c_str(),
-                            entry.raceMask,
-                            entry.dbStrId);
+            Original_AddNpc(mgr, 0, entry.raceId, entry.genderId, entry.modelName.c_str(), entry.raceMask, entry.dbStrId);
         }
         return mgr;
     }

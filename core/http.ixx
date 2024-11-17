@@ -3,11 +3,14 @@ export module http;
 import <Windows.h>;
 import <string>;
 import <fstream>;
+import <filesystem>;
 import <iostream>;
 import <functional>;
 #include <winhttp.h>
 
 #pragma comment(lib, "winhttp.lib")
+
+namespace fs = std::filesystem;
 
 constexpr auto* USER_AGENT        = L"EQNexus";
 constexpr DWORD CALLBACK_INTERVAL = 1024 * 100;  // 100 KB
@@ -48,19 +51,11 @@ DownloadJson(const std::string& url)
     if (!ParseUrl(wUrl, server, path, isHttps))
         return "";
 
-    HINTERNET hSession = WinHttpOpen(USER_AGENT,
-                                     WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
-                                     WINHTTP_NO_PROXY_NAME,
-                                     WINHTTP_NO_PROXY_BYPASS,
-                                     0);
+    HINTERNET hSession = WinHttpOpen(USER_AGENT, WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!hSession)
         return "";
 
-    HINTERNET hConnect =
-        WinHttpConnect(hSession,
-                       server.c_str(),
-                       isHttps ? INTERNET_DEFAULT_HTTPS_PORT : INTERNET_DEFAULT_HTTP_PORT,
-                       0);
+    HINTERNET hConnect = WinHttpConnect(hSession, server.c_str(), isHttps ? INTERNET_DEFAULT_HTTPS_PORT : INTERNET_DEFAULT_HTTP_PORT, 0);
     if (!hConnect)
     {
         WinHttpCloseHandle(hSession);
@@ -68,13 +63,8 @@ DownloadJson(const std::string& url)
     }
 
     DWORD requestFlags = isHttps ? WINHTTP_FLAG_SECURE : 0;
-    HINTERNET hRequest = WinHttpOpenRequest(hConnect,
-                                            L"GET",
-                                            path.c_str(),
-                                            NULL,
-                                            WINHTTP_NO_REFERER,
-                                            WINHTTP_DEFAULT_ACCEPT_TYPES,
-                                            requestFlags);
+    HINTERNET hRequest =
+        WinHttpOpenRequest(hConnect, L"GET", path.c_str(), NULL, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, requestFlags);
     if (!hRequest)
     {
         WinHttpCloseHandle(hConnect);
@@ -83,8 +73,7 @@ DownloadJson(const std::string& url)
     }
 
     std::string result;
-    if (WinHttpSendRequest(
-            hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0) &&
+    if (WinHttpSendRequest(hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0) &&
         WinHttpReceiveResponse(hRequest, NULL))
     {
         DWORD bytesAvailable = 0;
@@ -112,29 +101,23 @@ DownloadJson(const std::string& url)
 }
 
 bool
-DownloadBinary(const std::string& url,
-               const std::string& outputFilePath,
-               std::function<void(double)> progress_callback = nullptr)
+DownloadBinary(const std::string& url, const std::string& outputFilePath, std::function<void(double)> progress_callback = nullptr)
 {
+    // Ensure the directories exist
+    fs::path outputPath(outputFilePath);
+    fs::create_directories(outputPath.parent_path());  // Creates the parent directories if they don't exist
+
     std::wstring wUrl = StringToWString(url);
     std::wstring server, path;
     bool isHttps;
     if (!ParseUrl(wUrl, server, path, isHttps))
         return false;
 
-    HINTERNET hSession = WinHttpOpen(USER_AGENT,
-                                     WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
-                                     WINHTTP_NO_PROXY_NAME,
-                                     WINHTTP_NO_PROXY_BYPASS,
-                                     0);
+    HINTERNET hSession = WinHttpOpen(USER_AGENT, WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!hSession)
         return false;
 
-    HINTERNET hConnect =
-        WinHttpConnect(hSession,
-                       server.c_str(),
-                       isHttps ? INTERNET_DEFAULT_HTTPS_PORT : INTERNET_DEFAULT_HTTP_PORT,
-                       0);
+    HINTERNET hConnect = WinHttpConnect(hSession, server.c_str(), isHttps ? INTERNET_DEFAULT_HTTPS_PORT : INTERNET_DEFAULT_HTTP_PORT, 0);
     if (!hConnect)
     {
         WinHttpCloseHandle(hSession);
@@ -142,13 +125,8 @@ DownloadBinary(const std::string& url,
     }
 
     DWORD requestFlags = isHttps ? WINHTTP_FLAG_SECURE : 0;
-    HINTERNET hRequest = WinHttpOpenRequest(hConnect,
-                                            L"GET",
-                                            path.c_str(),
-                                            NULL,
-                                            WINHTTP_NO_REFERER,
-                                            WINHTTP_DEFAULT_ACCEPT_TYPES,
-                                            requestFlags);
+    HINTERNET hRequest =
+        WinHttpOpenRequest(hConnect, L"GET", path.c_str(), NULL, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, requestFlags);
     if (!hRequest)
     {
         WinHttpCloseHandle(hConnect);
@@ -166,8 +144,7 @@ DownloadBinary(const std::string& url,
     }
 
     DWORD totalBytes = 0;
-    if (WinHttpSendRequest(
-            hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0) &&
+    if (WinHttpSendRequest(hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0) &&
         WinHttpReceiveResponse(hRequest, NULL))
     {
         DWORD headerLength = sizeof(totalBytes);
@@ -187,8 +164,7 @@ DownloadBinary(const std::string& url,
             outFile.write(buffer, bytesRead);
             totalDownloaded += bytesRead;
 
-            if (progress_callback && totalBytes > 0 &&
-                totalDownloaded - lastProgressUpdate >= CALLBACK_INTERVAL)
+            if (progress_callback && totalBytes > 0 && totalDownloaded - lastProgressUpdate >= CALLBACK_INTERVAL)
             {
                 double progress = (static_cast<double>(totalDownloaded) / totalBytes) * 100;
                 progress_callback(progress);

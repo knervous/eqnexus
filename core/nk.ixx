@@ -1,4 +1,5 @@
 export module nk;
+import <functional>;
 import <string>;
 import "nuklear_d3d9.h";
 
@@ -7,20 +8,20 @@ export namespace nk_util
 void
 DrawSeparator(struct nk_context* ctx)
 {
-    struct nk_color yellow = nk_rgb(198, 170, 132);
-    float separator_width  = 0.8f;
+    float height = ctx->current->layout->row.height;
+    nk_layout_row_dynamic(ctx, 1, 1);
+    nk_spacing(ctx, 1);
+    ctx->current->layout->row.height = height;
+}
 
-    nk_layout_row_dynamic(ctx, 5, 1);
-    nk_label(ctx, "", NK_TEXT_LEFT);
-    nk_layout_row_begin(ctx, NK_STATIC, 1, 1);
-    nk_layout_row_push(ctx, ctx->current->layout->bounds.w * separator_width);
-    struct nk_rect rect = nk_layout_widget_bounds(ctx);
-    rect.h              = 1;
-    nk_fill_rect(&ctx->current->buffer, rect, 0, yellow);
-    nk_layout_row_end(ctx);
-
-    nk_layout_row_dynamic(ctx, 5, 1);
-    nk_label(ctx, "", NK_TEXT_LEFT);
+void
+DrawBlockWithBorder(struct nk_context* ctx)
+{
+    struct nk_color border_color = nk_rgb(198, 170, 132);
+    float border_thickness       = 2.0f;
+    nk_layout_row_dynamic(ctx, 1, 1);
+    struct nk_rect rect = nk_rect(0, 0, 100, 2);
+    nk_stroke_rect(&ctx->current->buffer, rect, 0, border_thickness, border_color);
 }
 
 void
@@ -49,12 +50,10 @@ std::string
 TruncateTextWithEllipsis(struct nk_context* ctx, const char* text, float max_width)
 {
     const char* ellipsis = "...";
-    float ellipsis_width =
-        ctx->style.font->width(ctx->style.font->userdata, ctx->style.font->height, ellipsis, 3);
+    float ellipsis_width = ctx->style.font->width(ctx->style.font->userdata, ctx->style.font->height, ellipsis, 3);
 
-    int len = strlen(text);
-    float text_width =
-        ctx->style.font->width(ctx->style.font->userdata, ctx->style.font->height, text, len);
+    int len          = strlen(text);
+    float text_width = ctx->style.font->width(ctx->style.font->userdata, ctx->style.font->height, text, len);
 
     if (text_width <= max_width)
     {
@@ -64,10 +63,8 @@ TruncateTextWithEllipsis(struct nk_context* ctx, const char* text, float max_wid
     for (int i = 0; i < len; ++i)
     {
         truncated_text += text[i];
-        float current_width = ctx->style.font->width(ctx->style.font->userdata,
-                                                     ctx->style.font->height,
-                                                     truncated_text.c_str(),
-                                                     truncated_text.size());
+        float current_width =
+            ctx->style.font->width(ctx->style.font->userdata, ctx->style.font->height, truncated_text.c_str(), truncated_text.size());
         if (current_width + ellipsis_width > max_width)
         {
             truncated_text = truncated_text.substr(0, truncated_text.size() - 1) + ellipsis;

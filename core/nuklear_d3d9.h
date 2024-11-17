@@ -186,8 +186,7 @@ nk_d3d9_render(enum nk_anti_aliasing AA)
             if (!cmd->elem_count)
                 continue;
 
-            hr = IDirect3DDevice9_SetTexture(
-                d3d9.device, 0, (IDirect3DBaseTexture9*) cmd->texture.ptr);
+            hr = IDirect3DDevice9_SetTexture(d3d9.device, 0, (IDirect3DBaseTexture9*) cmd->texture.ptr);
             NK_ASSERT(SUCCEEDED(hr));
 
             scissor.left   = (LONG) cmd->clip_rect.x;
@@ -260,15 +259,7 @@ nk_d3d9_create_font_texture()
 
     image = nk_font_atlas_bake(&d3d9.atlas, &w, &h, NK_FONT_ATLAS_RGBA32);
 
-    hr = IDirect3DDevice9_CreateTexture(d3d9.device,
-                                        w,
-                                        h,
-                                        1,
-                                        D3DUSAGE_DYNAMIC,
-                                        D3DFMT_A8R8G8B8,
-                                        D3DPOOL_DEFAULT,
-                                        &d3d9.texture,
-                                        NULL);
+    hr = IDirect3DDevice9_CreateTexture(d3d9.device, w, h, 1, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &d3d9.texture, NULL);
     NK_ASSERT(SUCCEEDED(hr));
 
     hr = IDirect3DTexture9_LockRect(d3d9.texture, 0, &locked, NULL, 0);
@@ -422,40 +413,33 @@ nk_d3d9_handle_event(HWND wnd, UINT msg, WPARAM wparam, LPARAM lparam)
             break;
 
         case WM_LBUTTONDOWN:
-            nk_input_button(
-                &d3d9.ctx, NK_BUTTON_LEFT, (short) LOWORD(lparam), (short) HIWORD(lparam), 1);
+            nk_input_button(&d3d9.ctx, NK_BUTTON_LEFT, (short) LOWORD(lparam), (short) HIWORD(lparam), 1);
             SetCapture(wnd);
             return 1;
 
         case WM_LBUTTONUP:
-            nk_input_button(
-                &d3d9.ctx, NK_BUTTON_DOUBLE, (short) LOWORD(lparam), (short) HIWORD(lparam), 0);
-            nk_input_button(
-                &d3d9.ctx, NK_BUTTON_LEFT, (short) LOWORD(lparam), (short) HIWORD(lparam), 0);
+            nk_input_button(&d3d9.ctx, NK_BUTTON_DOUBLE, (short) LOWORD(lparam), (short) HIWORD(lparam), 0);
+            nk_input_button(&d3d9.ctx, NK_BUTTON_LEFT, (short) LOWORD(lparam), (short) HIWORD(lparam), 0);
             ReleaseCapture();
             return 1;
 
         case WM_RBUTTONDOWN:
-            nk_input_button(
-                &d3d9.ctx, NK_BUTTON_RIGHT, (short) LOWORD(lparam), (short) HIWORD(lparam), 1);
+            nk_input_button(&d3d9.ctx, NK_BUTTON_RIGHT, (short) LOWORD(lparam), (short) HIWORD(lparam), 1);
             SetCapture(wnd);
             return 1;
 
         case WM_RBUTTONUP:
-            nk_input_button(
-                &d3d9.ctx, NK_BUTTON_RIGHT, (short) LOWORD(lparam), (short) HIWORD(lparam), 0);
+            nk_input_button(&d3d9.ctx, NK_BUTTON_RIGHT, (short) LOWORD(lparam), (short) HIWORD(lparam), 0);
             ReleaseCapture();
             return 1;
 
         case WM_MBUTTONDOWN:
-            nk_input_button(
-                &d3d9.ctx, NK_BUTTON_MIDDLE, (short) LOWORD(lparam), (short) HIWORD(lparam), 1);
+            nk_input_button(&d3d9.ctx, NK_BUTTON_MIDDLE, (short) LOWORD(lparam), (short) HIWORD(lparam), 1);
             SetCapture(wnd);
             return 1;
 
         case WM_MBUTTONUP:
-            nk_input_button(
-                &d3d9.ctx, NK_BUTTON_MIDDLE, (short) LOWORD(lparam), (short) HIWORD(lparam), 0);
+            nk_input_button(&d3d9.ctx, NK_BUTTON_MIDDLE, (short) LOWORD(lparam), (short) HIWORD(lparam), 0);
             ReleaseCapture();
             return 1;
 
@@ -468,8 +452,7 @@ nk_d3d9_handle_event(HWND wnd, UINT msg, WPARAM wparam, LPARAM lparam)
             return 1;
 
         case WM_LBUTTONDBLCLK:
-            nk_input_button(
-                &d3d9.ctx, NK_BUTTON_DOUBLE, (short) LOWORD(lparam), (short) HIWORD(lparam), 1);
+            nk_input_button(&d3d9.ctx, NK_BUTTON_DOUBLE, (short) LOWORD(lparam), (short) HIWORD(lparam), 1);
             return 1;
     }
 
@@ -511,15 +494,13 @@ nk_d3d9_clipboard_paste(nk_handle usr, struct nk_text_edit* edit)
         return;
     }
 
-    utf8size =
-        WideCharToMultiByte(CP_UTF8, 0, wstr, (int) size / sizeof(wchar_t), NULL, 0, NULL, NULL);
+    utf8size = WideCharToMultiByte(CP_UTF8, 0, wstr, (int) size / sizeof(wchar_t), NULL, 0, NULL, NULL);
     if (utf8size)
     {
         char* utf8 = (char*) malloc(utf8size);
         if (utf8)
         {
-            WideCharToMultiByte(
-                CP_UTF8, 0, wstr, (int) size / sizeof(wchar_t), utf8, utf8size, NULL, NULL);
+            WideCharToMultiByte(CP_UTF8, 0, wstr, (int) size / sizeof(wchar_t), utf8, utf8size, NULL, NULL);
             nk_textedit_paste(edit, utf8, utf8size);
             free(utf8);
         }
