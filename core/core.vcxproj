@@ -106,7 +106,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
       <IgnoreSpecificDefaultLibraries>LIBCMTD.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
-      <AdditionalDependencies>shlwapi.lib;gdiplus.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>gdiplus.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>powershell -ExecutionPolicy Bypass -File "$(SolutionDir)HotReload.ps1"</Command>
@@ -210,6 +210,7 @@
     <ClCompile Include="server.ixx" />
     <ClCompile Include="server_info.ixx" />
     <ClCompile Include="threadpool.ixx" />
+    <ClCompile Include="updater.ixx" />
     <ClCompile Include="utility.ixx" />
     <ClCompile Include="zip.ixx" />
     <ClCompile Include="zone.ixx" />

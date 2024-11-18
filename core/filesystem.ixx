@@ -231,7 +231,7 @@ export class FileSystem
 
         const std::set<std::string> allowed_dlls = {"entry.dll", "dinput8.dll"};
         for (const auto& entry : std::filesystem::recursive_directory_iterator(GetPrefix()))
-        {
+        {         
             if (entry.path().extension() == ".dll")
             {
                 std::string dll_name = entry.path().filename().string();
@@ -241,6 +241,7 @@ export class FileSystem
                     {
                         libs.push_back(hModule);
                         std::cout << "Loaded DLL: " << dll_name << std::endl;
+                        break;
                     }
                     else
                     {

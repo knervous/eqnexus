@@ -10,6 +10,7 @@ import login;
 import server;
 import nk;
 import server_info;
+import updater;
 
 import <windows.h>;
 import <d3d9.h>;
@@ -28,7 +29,6 @@ import <fstream>;
 namespace fs = std::filesystem;
 
 constexpr std::string_view ini_path     = "eqnexus/config.ini";
-constexpr std::string_view core_version = "1.0.0";
 
 export class EQOverlay
 {
@@ -59,6 +59,7 @@ export class EQOverlay
     bool server_op                 = false;
     IDirectInputDevice8A* keyboard = nullptr;
     IDirectInputDevice8A* mouse    = nullptr;
+    IDirect3DTexture9* bg_texture  = nullptr;
     DIMOUSESTATE mouse_state{};
     char keyboard_state[256]{};
     int mouse_x                = 0;
@@ -69,6 +70,8 @@ export class EQOverlay
     float window_height        = 200;
     bool nuklear_initialized   = false;
     std::string file_processed = "";
+    std::string release_url    = "";
+    std::string core_version   = "";
     nk_context* ctx            = nullptr;
     nk_font_atlas* atlas       = nullptr;
     nk_font* header_font;
@@ -77,8 +80,10 @@ export class EQOverlay
     nk_color border    = nk_rgb(198, 170, 132);
     std::string status = "Initializing";
     std::vector<std::unique_ptr<ServerInfo>> servers{};
+    CoreVersion version;
     bool task_running          = false;
     bool version_warning_shown = false;
+    bool has_latest            = false;
 #ifdef DEV
     nk_bool skip_validation = false;
 #endif
@@ -86,7 +91,6 @@ export class EQOverlay
     void InitializeBounds()
     {
         RECT clientRect;
-        FetchServerData();
         if (GetClientRect(GetActiveWindow(), &clientRect))
         {
             window_width  = 330;
@@ -105,102 +109,128 @@ export class EQOverlay
 
     void FetchServerData()
     {
-        status                 = "Fetching Server Metadata...";
-        const auto url         = util::ReadIniValue("ServerMetadata", "ManifestUrl", ini_path);
-        const auto release_url = util::ReadIniValue("ServerMetadata", "ReleaseUrl", ini_path);
-        server_op              = util::ReadIniValue("ServerMetadata", "ServerOp", ini_path) == "true";
+        status                = "Fetching Server Metadata...";
+        const auto url        = util::ReadIniValue("ServerMetadata", "ManifestUrl", ini_path);
+        const auto latest_url = util::ReadIniValue("ServerMetadata", "LatestUrl", ini_path);
+        core_version          = util::ReadIniValue("Version", "CoreVersion", ini_path);
+        release_url           = util::ReadIniValue("ServerMetadata", "ReleaseUrl", ini_path);
+        server_op             = util::ReadIniValue("ServerMetadata", "ServerOp", ini_path) == "true";
         servers.clear();
-        std::thread t([this, url, release_url]() {
-            if (auto response = http::DownloadJson(url); !response.empty())
+        std::thread t([this, url, latest_url]() {
+            if (auto response = http::DownloadJson(url), latest_response = http::DownloadJson(latest_url);
+                !response.empty(), !latest_response.empty())
             {
                 rapidjson::Document document;
                 document.Parse(response.c_str());
-                if (!document.HasParseError())
+                rapidjson::Document latest_document;
+                latest_document.Parse(latest_response.c_str());
+                if (document.HasParseError() || latest_document.HasParseError() || latest_document.HasMember("error"))
                 {
-                    auto manifest_version = std::string(document["version"].GetString());
-                    if (core_version != manifest_version && !version_warning_shown)
-                    {
-                        version_warning_shown = true;
-                        std::thread t([this, manifest_version, release_url]() {
-                            while (!Login::DidRetrieveServers())
-                            {
-                                std::this_thread::sleep_for(std::chrono::milliseconds(500));
-                            }
-                            ShowPopup("EQ Nexus Core version out of date. Latest version is: " + manifest_version +
-                                      "<br></br><br></br>To download the latest core version, please visit " + "<a href=\"" + release_url +
-                                      "\">" + release_url + "</a>");
-                        });
-                        t.detach();
-                    }
-
-                    status = "Server Manifest Version: " + manifest_version;
-                    for (const auto& server : document["servers"].GetArray())
-                    {
-                        if (server.HasMember("manifest") && server["manifest"].IsString())
+                    std::thread t([this]() {
+                        while (!Login::DidRetrieveServers())
                         {
-                            if (auto serverResponse = http::DownloadJson(server["manifest"].GetString()); !serverResponse.empty())
-                            {
-                                rapidjson::Document serverDocument;
-                                serverDocument.Parse(serverResponse.c_str());
-                                if (serverDocument.HasParseError())
-                                {
-                                    continue;
-                                }
-
-                                std::vector<std::string> hosts                     = {};
-                                std::vector<std::string> required                  = {};
-                                std::unordered_map<std::string, std::string> files = {};
-                                for (const auto& host : serverDocument["hosts"].GetArray())
-                                {
-                                    if (host.IsString())
-                                        hosts.push_back(host.GetString());
-                                }
-                                if (serverDocument.HasMember("required") && serverDocument["required"].IsArray())
-                                {
-                                    for (const auto& required_file : serverDocument["required"].GetArray())
-                                    {
-                                        if (required_file.IsString())
-                                            required.push_back(required_file.GetString());
-                                    }
-                                }
-
-                                if (serverDocument.HasMember("files") && serverDocument["files"].IsObject())
-                                {
-                                    for (const auto& [name, hash] : serverDocument["files"].GetObj())
-                                    {
-                                        if (name.IsString() && hash.IsString())
-                                        {
-                                            files[name.GetString()] = hash.GetString();
-                                        }
-                                    }
-                                }
-                                auto getStringOrDefault = [&](const char* key, const std::string& defaultValue) -> std::string {
-                                    return serverDocument.HasMember(key) && serverDocument[key].IsString() ? serverDocument[key].GetString()
-                                                                                                           : defaultValue;
-                                };
-
-                                servers.emplace_back(std::make_unique<ServerInfo>(getStringOrDefault("shortName", ""),
-                                                                                  getStringOrDefault("longName", ""),
-                                                                                  getStringOrDefault("customFilesUrl", ""),
-                                                                                  getStringOrDefault("filesUrlPrefix", ""),
-                                                                                  getStringOrDefault("version", ""),
-                                                                                  getStringOrDefault("website", "None"),
-                                                                                  getStringOrDefault("description", "None"),
-                                                                                  std::move(hosts),
-                                                                                  std::move(required),
-                                                                                  std::move(files)));
-                                servers.back()->ValidateInstallAsync();
-                            }
+                            std::this_thread::sleep_for(std::chrono::milliseconds(500));
                         }
-                        else
+                        ShowPopup(
+                            "There was an error downloading the server manifest. <br></br><br></br>To download the latest core version, "
+                            "please visit <a href=\"" +
+                            release_url + "\">" + release_url + "</a>");
+                    });
+                    t.detach();
+                    status = "Error fetching metadata";
+                    return;
+                }
+
+                auto latest_core_version = std::string(latest_document["version"].GetString());
+                auto filename            = std::string(latest_document["filename"].GetString());
+
+                version = CoreVersion{latest_core_version, filename};
+
+                if (core_version != latest_core_version && !version_warning_shown)
+                {
+                    version_warning_shown = true;
+                    std::thread t([this, latest_core_version]() {
+                        while (!Login::DidRetrieveServers())
                         {
-                            continue;
+                            std::this_thread::sleep_for(std::chrono::milliseconds(500));
                         }
-                    }
+                        ShowPopup("EQ Nexus Core version out of date. Latest version is: " + latest_core_version +
+                                  "<br></br><br></br>To download the latest core version, please visit " + "<a href=\"" + release_url +
+                                  "\">" + release_url + "</a> or click 'Update Core'");
+                    });
+                    t.detach();
                 }
                 else
                 {
-                    status = "Error from URL: " + std::string(url);
+                    has_latest = true;
+                }
+
+                status = "Core Version: " + core_version;
+                if (core_version != latest_core_version) {
+                    status += " (Latest: " + latest_core_version + ")";
+                }
+                for (const auto& server : document["servers"].GetArray())
+                {
+                    if (server.HasMember("manifest") && server["manifest"].IsString())
+                    {
+                        if (auto serverResponse = http::DownloadJson(server["manifest"].GetString()); !serverResponse.empty())
+                        {
+                            rapidjson::Document serverDocument;
+                            serverDocument.Parse(serverResponse.c_str());
+                            if (serverDocument.HasParseError())
+                            {
+                                continue;
+                            }
+
+                            std::vector<std::string> hosts                     = {};
+                            std::vector<std::string> required                  = {};
+                            std::unordered_map<std::string, std::string> files = {};
+                            for (const auto& host : serverDocument["hosts"].GetArray())
+                            {
+                                if (host.IsString())
+                                    hosts.push_back(host.GetString());
+                            }
+                            if (serverDocument.HasMember("required") && serverDocument["required"].IsArray())
+                            {
+                                for (const auto& required_file : serverDocument["required"].GetArray())
+                                {
+                                    if (required_file.IsString())
+                                        required.push_back(required_file.GetString());
+                                }
+                            }
+
+                            if (serverDocument.HasMember("files") && serverDocument["files"].IsObject())
+                            {
+                                for (const auto& [name, hash] : serverDocument["files"].GetObj())
+                                {
+                                    if (name.IsString() && hash.IsString())
+                                    {
+                                        files[name.GetString()] = hash.GetString();
+                                    }
+                                }
+                            }
+                            auto getStringOrDefault = [&](const char* key, const std::string& defaultValue) -> std::string {
+                                return serverDocument.HasMember(key) && serverDocument[key].IsString() ? serverDocument[key].GetString()
+                                                                                                       : defaultValue;
+                            };
+
+                            servers.emplace_back(std::make_unique<ServerInfo>(getStringOrDefault("shortName", ""),
+                                                                              getStringOrDefault("longName", ""),
+                                                                              getStringOrDefault("customFilesUrl", ""),
+                                                                              getStringOrDefault("filesUrlPrefix", ""),
+                                                                              getStringOrDefault("version", ""),
+                                                                              getStringOrDefault("website", "None"),
+                                                                              getStringOrDefault("description", "None"),
+                                                                              std::move(hosts),
+                                                                              std::move(required),
+                                                                              std::move(files)));
+                            servers.back()->ValidateInstallAsync();
+                        }
+                    }
+                    else
+                    {
+                        continue;
+                    }
                 }
             }
         });
@@ -226,40 +256,55 @@ export class EQOverlay
         PollDirectInputForNuklear();
         nk_input_end(ctx);
         struct nk_style* s = &ctx->style;
-        nk_style_push_style_item(ctx, &s->window.fixed_background, nk_style_item_color(nk_rgb(bg.r, bg.g, bg.b)));
+        // nk_style_push_style_item(ctx, &s->window.fixed_background, nk_style_item_color(nk_rgb(bg.r, bg.g, bg.b)));
 
         struct nk_rect window_rect       = nk_rect(window_x, window_y, window_width, window_height);
         struct nk_rect window_rect_popup = nk_rect(window_x - window_width - 20, window_y, window_width, 150);
 
         nk_style_push_font(ctx, &header_font->handle);
         if (nk_begin(ctx,
-                     "EQ Nexus Server Patcher 1",
+                     "EQ Nexus Server Patcher",
                      window_rect,
                      NK_WINDOW_BORDER | NK_WINDOW_MOVABLE | NK_WINDOW_SCALABLE | NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE))
         {
             nk_style_pop_font(ctx);
             nk_layout_row_dynamic(ctx, 30, 1);
             nk_label(ctx, status.c_str(), NK_TEXT_CENTERED);
-            float ww           = nk_window_get_content_region(ctx).w;
-            float button_width = 135.0f;
-            float x_pos        = (ww - button_width) / 2;
-
-            nk_layout_space_begin(ctx, NK_STATIC, 30, 1);
-            nk_layout_space_push(ctx, nk_rect(x_pos, 0, button_width, 20));
+            nk_layout_row_dynamic(ctx, 25, 2);
             bool processing = !file_processed.empty();
             bool validating = false;
             for (const auto& server : servers)
             {
                 validating = validating || server->IsValidating();
             }
+            std::string update_text(has_latest ? "Nexus Up To Date" : "Update Nexus");
+            nk_style_push_vec2(ctx, &s->button.padding, nk_vec2(15.0f, s->button.padding.y));  // Left and right padding
+
             if (processing || task_running || validating)
             {
                 nk_util::RenderDisabledButton(ctx, "Refresh Server List");
+                nk_util::RenderDisabledButton(ctx, update_text.c_str());
             }
-            else if (nk_button_label(ctx, "Refresh Server List"))
+            else
             {
-                FetchServerData();
+                if (nk_button_label(ctx, "Refresh Server List"))
+                {
+                    FetchServerData();
+                }
+                if (!has_latest)
+                {
+                    if (nk_button_label(ctx, update_text.c_str()))
+                    {
+                        CoreUpdater::UpdateCore(version, release_url);
+                    }
+                }
+                else
+                {
+                    nk_util::RenderDisabledButton(ctx, update_text.c_str());
+                }
             }
+
+            nk_style_pop_vec2(ctx);
 
             if (server_op)
             {
@@ -298,7 +343,7 @@ export class EQOverlay
         {
             nk_style_pop_font(ctx);
         }
-        nk_style_pop_style_item(ctx);
+        // nk_style_pop_style_item(ctx);
 
         struct nk_vec2 new_position = nk_window_get_position(ctx);
         struct nk_vec2 new_size     = nk_window_get_size(ctx);
@@ -309,31 +354,31 @@ export class EQOverlay
         nk_end(ctx);
 
 #ifdef DEV
-        /*      struct nk_rect debug_wnd_rect = nk_rect(0.0f, 0.0f, 200.0f, 300.0f);
-              if (nk_begin(ctx, "Debug", debug_wnd_rect, NK_WINDOW_BORDER | NK_WINDOW_TITLE))
-              {
-                  nk_layout_row_dynamic(ctx, 30, 1);
+        /*struct nk_rect debug_wnd_rect = nk_rect(0.0f, 0.0f, 200.0f, 300.0f);
+        if (nk_begin(ctx, "Debug", debug_wnd_rect, NK_WINDOW_BORDER | NK_WINDOW_TITLE))
+        {
+            nk_layout_row_dynamic(ctx, 30, 1);
 
-                  nk_checkbox_label(ctx, "Skip validation", &skip_validation);
-                  float ww           = nk_window_get_content_region(ctx).w;
-                  float button_width = 135.0f;
-                  float x_pos        = (ww - button_width) / 2;
+            nk_checkbox_label(ctx, "Skip validation", &skip_validation);
+            float ww           = nk_window_get_content_region(ctx).w;
+            float button_width = 135.0f;
+            float x_pos        = (ww - button_width) / 2;
 
-                  nk_layout_space_begin(ctx, NK_STATIC, 40, 1);
-                  nk_layout_space_push(ctx, nk_rect(x_pos, 0, button_width, 30));
+            nk_layout_space_begin(ctx, NK_STATIC, 40, 1);
+            nk_layout_space_push(ctx, nk_rect(x_pos, 0, button_width, 30));
 
-                  nk_layout_space_end(ctx);
-                  nk_layout_space_begin(ctx, NK_STATIC, 40, 1);
-                  nk_layout_space_push(ctx, nk_rect(x_pos, 0, button_width, 30));
+            nk_layout_space_end(ctx);
+            nk_layout_space_begin(ctx, NK_STATIC, 40, 1);
+            nk_layout_space_push(ctx, nk_rect(x_pos, 0, button_width, 30));
 
-                  if (nk_button_label(ctx, "Test"))
-                  {
-                      Login::OpenModal("Testing here: <a href=\"https://google.com\">Test anchor</a>");
-                  }
+            if (nk_button_label(ctx, "Test"))
+            {
+                Login::OpenModal("Testing here: <a href=\"https://google.com\">Test anchor</a>");
+            }
 
-                  nk_layout_space_end(ctx);
-              }
-              nk_end(ctx);*/
+            nk_layout_space_end(ctx);
+        }
+        nk_end(ctx);*/
 
 #endif
         nk_d3d9_render(NK_ANTI_ALIASING_ON);
@@ -352,7 +397,13 @@ export class EQOverlay
             nk_style_load_all_cursors(ctx, atlas->cursors);
             nk_style_set_font(ctx, &body_font->handle);
 
-            struct nk_style* s            = &ctx->style;
+            struct nk_style* s = &ctx->style;
+            if (D3D9Hooks::BackgroundTexture())
+            {
+                struct nk_image tex                = nk_image_ptr(D3D9Hooks::BackgroundTexture());
+                ctx->style.window.fixed_background = nk_style_item_image(tex);
+            }
+
             auto text_color               = nk_rgb(240, 240, 240);
             s->text.color                 = text_color;
             s->window.border_color        = border;
@@ -371,6 +422,7 @@ export class EQOverlay
             s->window.spacing                                 = nk_vec2(5, 5);
 
             nuklear_initialized = true;
+            FetchServerData();
         }
     }
 

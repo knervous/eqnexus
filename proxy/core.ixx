@@ -5,8 +5,14 @@ import <dinput.h>;
 import "Windows.h";
 import <iostream>;
 import <cstdio>;
+import <thread>;
+import <chrono>;
+import <filesystem>;
 
-typedef bool (*CoreInitialize_t)();
+namespace fs = std::filesystem;
+
+typedef void (*UpdateCallback)(const char* folder);
+typedef bool (*CoreInitialize_t)(void* update_callback);
 typedef bool (*CoreSetDevices_t)(void* keyboard, void* mouse);
 typedef bool (*CoreTeardown_t)();
 
@@ -35,6 +41,37 @@ GetMouseDevice()
     return pMouseDevice;
 };
 
+void
+LoadCore();
+void
+LoadDevices();
+
+bool
+IsFileInUse(const std::string& filePath)
+{
+    HANDLE hFile = CreateFileA(filePath.c_str(),
+                               GENERIC_READ,
+                               0,  // Request exclusive access
+                               nullptr,
+                               OPEN_EXISTING,
+                               FILE_ATTRIBUTE_NORMAL,
+                               nullptr);
+
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        DWORD error = GetLastError();
+        if (error == ERROR_SHARING_VIOLATION)
+        {
+            return true;
+        }
+    }
+    else
+    {
+        CloseHandle(hFile);
+    }
+    return false;
+}
+
 export void
 LoadDevices()
 {
@@ -60,30 +97,6 @@ LoadDevices()
 }
 
 export void
-LoadCore()
-{
-    auto lib = LoadLibrary(L"eqnexus/core.dll");
-    if (lib)
-    {
-        CoreInitialize_t Initialize = (CoreInitialize_t) GetProcAddress(lib, "Initialize");
-        bool success                = Initialize();
-        if (success)
-        {
-            std::cout << "Initialization successful!" << std::endl;
-            core_loaded = true;
-        }
-        else
-        {
-            std::cout << "Initialization failed." << std::endl;
-        }
-    }
-    else
-    {
-        MessageBox(NULL, L"Nexus Core not found in eqnexus/core.dll", L"Missing files", MB_OK);
-    }
-}
-
-export void
 UnloadCore()
 {
     auto lib = GetModuleHandle(L"eqnexus/core.dll");
@@ -101,5 +114,115 @@ UnloadCore()
         {
             std::cout << "Teardown failed." << std::endl;
         }
+    }
+}
+
+extern bool __cdecl UpdateCore(const char* temp)
+{
+    std::cout << "Called update core: " << temp << std::endl;
+
+    if (!fs::exists(temp))
+    {
+        std::cerr << "Provided folder does not exist!" << std::endl;
+        return false;
+    }
+    // Want to copy this in
+    std::string folder(temp);
+    // Need to let this function return to core.dll and then do this work on another thread
+    // So core.dll can be unloaded
+    std::thread t([folder]() {
+        // First unload then we copy all the new files in and reload
+        UnloadCore();
+
+        fs::path source_eqnexus = fs::path(folder) / "eqnexus";
+        if (!fs::exists(source_eqnexus) || !fs::is_directory(source_eqnexus))
+        {
+            std::cerr << "eqnexus folder not found in the provided folder!" << std::endl;
+            return false;
+        }
+
+        fs::path target_eqnexus = fs::current_path() / "eqnexus";
+
+        if (!fs::exists(target_eqnexus))
+        {
+            fs::create_directories(target_eqnexus);
+        }
+
+        try
+        {
+            for (const auto& entry : fs::recursive_directory_iterator(source_eqnexus))
+            {
+                fs::path relative_path = fs::relative(entry.path(), source_eqnexus);
+                fs::path target_path   = target_eqnexus / relative_path;
+
+                if (fs::is_directory(entry))
+                {
+                    if (!fs::exists(target_path))
+                    {
+                        fs::create_directories(target_path);
+                    }
+                }
+                else if (fs::is_regular_file(entry))
+                {
+                    if (fs::exists(target_path)) {
+                        for (int attempt = 0; attempt < 50; attempt++) {
+                            try {
+                                fs::copy_file(entry.path(), target_path, fs::copy_options::overwrite_existing);
+                                std::cout << "Copied: " << entry.path() << " to " << target_path << std::endl;
+                                break;
+                            }
+                            catch(const fs::filesystem_error& e) {
+                                std::cerr << "Filesystem error: " << e.what() << std::endl;
+                            }
+                            std::this_thread::sleep_for(std::chrono::milliseconds(250));
+                        }
+                    }
+                }
+            }
+        } catch (const fs::filesystem_error& e)
+        {
+            std::cerr << "Filesystem error: " << e.what() << std::endl;
+            return false;
+        }
+
+        try
+        {
+            fs::remove_all(folder);
+            std::cout << "Deleted source folder: " << folder << std::endl;
+        } catch (const fs::filesystem_error& e)
+        {
+            std::cerr << "Error deleting folder: " << e.what() << std::endl;
+            return false;
+        }
+
+        LoadCore();
+        LoadDevices();
+    });
+    t.detach();
+
+    return true;
+}
+
+export void
+LoadCore()
+{
+    auto lib = LoadLibrary(L"eqnexus/core.dll");
+    if (lib)
+    {
+        CoreInitialize_t Initialize = (CoreInitialize_t) GetProcAddress(lib, "Initialize");
+        bool success                = Initialize((void*) &UpdateCore);
+        if (success)
+        {
+            std::cout << "Initialization successful!" << std::endl;
+            core_loaded = true;
+        }
+        else
+        {
+            std::cout << "Initialization failed." << std::endl;
+        }
+    }
+    else
+    {
+        MessageBox(NULL, L"Nexus Core not found in eqnexus/core.dll", L"Missing files", MB_OK);
     }
 }

@@ -1,0 +1,15 @@
+{
+  "name": "eqnexus",
+  "version": "1.0.0",
+  "description": "File packer for EQ Nexus",
+  "type": "module",
+  "main": "pack.js",
+  "scripts": {
+    "start": "node pack.js"
+  },
+  "author": "temp0",
+  "license": "ISC",
+  "dependencies": {
+    "archiver": "^7.0.1"
+  }
+}

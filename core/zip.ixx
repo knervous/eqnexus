@@ -96,7 +96,7 @@ ProcessZipFileWithHash(const std::string& zipPath,
 }
 
 bool
-ExtractAllFilesFromZip(const std::string& zipPath, std::function<void(const std::string&)> fn)
+ExtractAllFilesFromZip(const std::string& zipPath, std::function<void(const std::string&)> fn = nullptr)
 {
     unzFile zipfile = unzOpen(zipPath.c_str());
     if (!zipfile)
@@ -131,7 +131,10 @@ ExtractAllFilesFromZip(const std::string& zipPath, std::function<void(const std:
             unzClose(zipfile);
             return false;
         }
-        fn(filename);
+        if (fn)
+        {
+            fn(filename); 
+        }
         fs::path output_path = output_dir / filename;
         fs::create_directories(output_path.parent_path());
 

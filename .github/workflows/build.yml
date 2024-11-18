@@ -1,0 +1,70 @@
+name: Build
+
+on:
+  push:
+    branches: [ "master" ]
+
+env:
+  VERSION: 1.0.2
+  BUILD_CONFIGURATION: Release
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+
+    - name: Checkout
+      uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: Bootstrap vcpkg
+      shell: cmd
+      run: |
+        cd vcpkg
+        .\bootstrap-vcpkg.bat
+
+    - name: Install vcpkg dependencies
+      shell: cmd
+      run: |
+        cd vcpkg
+        .\vcpkg.exe install --triplet x86-windows-static
+
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v1
+
+    - name: Define Environment Variables
+      run: echo "SKIP_POST_BUILD=true" >> $Env:GITHUB_ENV
+
+    - name: Build Solution
+      shell: cmd
+      run: |
+        call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars32.bat"
+        msbuild EQNexus.sln /p:Configuration=Release /p:Platform=x86
+
+    - name: Define VERSION
+      run: echo "VERSION=${{ env.VERSION }}.${{ github.run_number }}" >> $Env:GITHUB_ENV
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 20
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Pack release
+      run: npm start
+
+    # Create GitHub Release
+    - name: Release
+      uses: "marvinpinto/action-automatic-releases@latest"
+      if: github.ref == 'refs/heads/master'
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        automatic_release_tag: "${{ env.VERSION }}"
+        prerelease: false
+        title: "${{ env.VERSION }}"
+        files: |
+          "${{ env.VERSION }}".zip
+          version.json

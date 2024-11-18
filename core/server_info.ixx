@@ -239,25 +239,35 @@ export class ServerInfo
     void DrawListItem(nk_context* ctx, bool& task_running)
     {
         CheckClientServer();
-        nk_layout_row_dynamic(ctx, 20, 2);
+        nk_util::DrawSeparator(ctx);
+
+        nk_layout_row_dynamic(ctx, 25, 2);
         if (nk_widget_is_hovered(ctx))
         {
             nk_tooltip(ctx, longName.c_str());
         }
         nk_label(ctx, nk_util::TruncateTextWithEllipsis(ctx, longName.c_str(), 200.0f).c_str(), NK_TEXT_LEFT);
-        if (nk_button_label(ctx, "Server Info"))
+
+        if (clientServer)
         {
-            Login::OpenModal(util::Interpolate(R"(
+            if (nk_button_label(ctx, "Server Info"))
+            {
+                Login::OpenModal(util::Interpolate(R"(
                         Server: {}<br></br>
                         Version: {}<br></br>
                         Website: <a href="{}">{}</a><br></br>
                         Description: {}
                     )",
-                                               longName,
-                                               version,
-                                               website,
-                                               website,
-                                               description));
+                                                   longName,
+                                                   version,
+                                                   website,
+                                                   website,
+                                                   description));
+            }
+        }
+        else
+        {
+            nk_util::RenderDisabledButton(ctx, "Server Info");
         }
 
         bool server_task_running = !status.empty() || downloading;
@@ -322,7 +332,6 @@ export class ServerInfo
                 nk_util::RenderDisabledButton(ctx, "Offline");
             }
         }
-        nk_util::DrawSeparator(ctx);
     }
 
     bool SerializeManifest(const std::string& filename)

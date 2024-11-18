@@ -2,6 +2,11 @@ param (
     [string]$Config = "Debug"
 )
 
+if ($env:SKIP_POST_BUILD -eq "true") {
+    Write-Host "SKIP_POST_BUILD is set. Exiting post-build script."
+    exit 0
+}
+
 # Define the events and delay
 $unloadEventName = "Global\UnloadEvent"
 $reloadEventName = "Global\ReloadEvent"

@@ -6,6 +6,7 @@ import filesystem;
 import login;
 import config;
 import server;
+import updater;
 
 #include <MinHook.h>
 #include <dinput.h>
@@ -85,8 +86,9 @@ SetDevices(IDirectInputDevice8A* k, IDirectInputDevice8A* m)
 }
 
 extern "C" __declspec(dllexport) bool
-Initialize()
+Initialize(void* callback)
 {
+    CoreUpdater::SetCallback(callback);
     if (!did_init)
     {
 #ifdef DEV
@@ -119,6 +121,7 @@ Teardown()
         std::cerr << "Failed to uninitialize MinHook." << std::endl;
         return false;
     }
+    std::cout << "Completed core teardown" << std::endl;
     return true;
 }
 

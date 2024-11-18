@@ -1,19 +1,62 @@
 export module nk;
+
+import d3d9_hooks;
 import <functional>;
 import <string>;
+import <d3d9.h>;
 import "nuklear_d3d9.h";
 
 export namespace nk_util
 {
 void
-DrawSeparator(struct nk_context* ctx)
+DrawSeparator(struct nk_context* ctx, bool with_image = true)
 {
     float height = ctx->current->layout->row.height;
-    nk_layout_row_dynamic(ctx, 1, 1);
+   
+    nk_layout_row_dynamic(ctx, 2, 1);
     nk_spacing(ctx, 1);
+    if (with_image && D3D9Hooks::SeparatorTexture())
+    {
+        struct nk_style* style = &ctx->style;
+        nk_style_push_vec2(ctx, &style->window.padding, nk_vec2(55, style->window.padding.y));
+
+        struct nk_image separator_image = nk_image_ptr(D3D9Hooks::SeparatorTexture());
+        nk_layout_row_dynamic(ctx, 20, 1);
+        nk_image(ctx, separator_image);
+
+        nk_style_pop_vec2(ctx);
+    }
+
     ctx->current->layout->row.height = height;
 }
+void
+DrawImageWithAspectRatio(struct nk_context* ctx, IDirect3DTexture9* texture, int tex_width, int tex_height, struct nk_rect win_rect)
+{
+    float aspect_ratio = (float) tex_width / (float) tex_height;
 
+    // Calculate new dimensions based on window size
+    float new_width  = win_rect.w;
+    float new_height = win_rect.w / aspect_ratio;
+
+    if (new_height > win_rect.h)
+    {
+        // If the calculated height exceeds the window height, adjust the width instead
+        new_height = win_rect.h;
+        new_width  = win_rect.h * aspect_ratio;
+    }
+
+    // Center the image within the window
+    float x_offset = (win_rect.w - new_width) / 2.0f;
+    float y_offset = (win_rect.h - new_height) / 2.0f;
+
+    // Define the drawing area
+    struct nk_rect img_rect = nk_rect(win_rect.x + x_offset, win_rect.y + y_offset, new_width, new_height);
+
+    // Draw the image
+    struct nk_command_buffer* canvas = nk_window_get_canvas(ctx);
+    struct nk_image img              = nk_image_ptr(texture);
+    nk_draw_image(canvas, img_rect, &img, nk_color(255, 255, 255));
+}
 void
 DrawBlockWithBorder(struct nk_context* ctx)
 {
