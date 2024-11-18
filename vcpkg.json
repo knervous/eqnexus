@@ -16,6 +16,9 @@
         },
         {
             "name": "stb"
+        },
+        {
+            "name": "dxsdk-d3dx"
         }
     ]
 }
