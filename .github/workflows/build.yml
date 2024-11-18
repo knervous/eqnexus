@@ -21,7 +21,7 @@ jobs:
       id: vcpkg
       with:
         pkgs: minhook rapidjson minizip xxhash stb
-        triplet: x86-windows-release
+        triplet: x86-windows-static
         token: ${{ github.token }}
         github-binarycache: true
       
