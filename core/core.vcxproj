@@ -108,10 +108,7 @@
       <IgnoreSpecificDefaultLibraries>LIBCMTD.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <AdditionalDependencies>gdiplus.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
-    <PropertyGroup>
-      <PostBuildSkip Condition="'$(SKIP_POST_BUILD)' == 'true'">true</PostBuildSkip>
-    </PropertyGroup>
-    <PostBuildEvent  Condition="'$(PostBuildSkip)' != 'true'">
+    <PostBuildEvent Condition="'$(SKIP_POST_BUILD)' != 'true'">
       <Command>powershell -ExecutionPolicy Bypass -File "$(SolutionDir)HotReload.ps1"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -140,10 +137,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
     </Link>
-    <PropertyGroup>
-      <PostBuildSkip Condition="'$(SKIP_POST_BUILD)' == 'true'">true</PostBuildSkip>
-    </PropertyGroup>
-    <PostBuildEvent  Condition="'$(PostBuildSkip)' != 'true'">
+    <PostBuildEvent Condition="'$(SKIP_POST_BUILD)' != 'true'">
       <Command>powershell -ExecutionPolicy Bypass -File "$(SolutionDir)HotReload.ps1" Release</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>

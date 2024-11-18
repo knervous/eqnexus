@@ -105,18 +105,9 @@
       <ModuleDefinitionFile>dinput8.def</ModuleDefinitionFile>
       <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
-    <PropertyGroup>
-      <PostBuildSkip Condition="'$(SKIP_POST_BUILD)' == 'true'">true</PostBuildSkip>
-    </PropertyGroup>
-    <!-- Conditional PostBuildEvent -->
-    <PostBuildEvent Condition="'$(PostBuildSkip)' != 'true'">
+    <PostBuildEvent Condition="'$(SKIP_POST_BUILD)' != 'true'">
       <Command>copy "$(SolutionDir)$(Configuration)\dinput8.dll" "$(SolutionDir)..\everquest_rof2\dinput8.dll"</Command>
     </PostBuildEvent>
-
-    <!-- Conditional CustomBuildStep -->
-    <CustomBuildStep Condition="'$(PostBuildSkip)' != 'true'">
-      <Command>copy "$(SolutionDir)$(Configuration)\dinput8.dll" "$(SolutionDir)..\everquest_rof2\dinput8.dll"</Command>
-    </CustomBuildStep>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -141,10 +132,7 @@
       <ModuleDefinitionFile>dinput8.def</ModuleDefinitionFile>
       <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
-    <PropertyGroup>
-      <PostBuildSkip Condition="'$(SKIP_POST_BUILD)' == 'true'">true</PostBuildSkip>
-    </PropertyGroup>
-    <PostBuildEvent  Condition="'$(PostBuildSkip)' != 'true'">
+    <PostBuildEvent Condition="'$(SKIP_POST_BUILD)' != 'true'">
       <Command>copy "$(SolutionDir)$(Configuration)\dinput8.dll" "$(SolutionDir)..\everquest_rof2\dinput8.dll"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
