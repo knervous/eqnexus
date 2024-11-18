@@ -7,7 +7,7 @@ import debug;
 #include <d3d9.h>
 #include <dinput.h>
 
-#include "MinHook.h"
+#include <MinHook.h>
 #include <csignal>
 #include <cstdio>
 #include <iostream>

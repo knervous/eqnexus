@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import archiver from 'archiver';
+import ini from 'ini';
 
 // Retrieve version and define the zip filename
 const version = process.env.VERSION;
@@ -10,6 +11,25 @@ const zipFilename = `eqnexus-${version}.zip`;
 const dinput8Path = path.resolve('Release', 'dinput8.dll');
 const coreDllPath = path.resolve('Release', 'core.dll');
 const resourcesFolder = path.resolve('resources');
+
+
+// Update config.ini
+let config = {};
+const configPath = path.join(resourcesFolder, 'config.ini');
+if (fs.existsSync(configPath)) {
+    const fileContent = fs.readFileSync(configPath, 'utf-8');
+    config = ini.parse(fileContent);
+} else {
+    console.log(`config.ini does not exist at ${configPath}. Creating a new one.`);
+}
+
+// Ensure the [Version] section exists and update CoreVersion
+config.Version = config.Version || {};
+config.Version.CoreVersion = version;
+
+// Write the updated config.ini back to the file
+fs.writeFileSync(configPath, ini.stringify(config), 'utf-8');
+console.log(`Updated config.ini with CoreVersion=${version}`);
 
 // Define output structure for the zip file
 const output = fs.createWriteStream(zipFilename);
