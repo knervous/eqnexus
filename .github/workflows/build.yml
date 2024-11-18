@@ -38,8 +38,7 @@ jobs:
     - name: Build Solution
       shell: cmd
       run: |
-        call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\Common7\Tools\VsDevCmd.bat"
-        msbuild EQNexus.sln /p:Configuration=Release /p:Platform=x86 /p:EnableModules=true
+        msbuild proxy/NexusProxy.vcxproj /p:Configuration=Release /p:Platform=x86 /p:EnableModules=true
 
     - name: Cache Module Files
       uses: actions/cache@v3
@@ -61,15 +60,15 @@ jobs:
     - name: Pack release
       run: npm start
 
-    # Create GitHub Release
-    - name: Release
-      uses: "marvinpinto/action-automatic-releases@latest"
-      if: github.ref == 'refs/heads/master'
-      with:
-        repo_token: "${{ secrets.GITHUB_TOKEN }}"
-        automatic_release_tag: "${{ env.VERSION }}"
-        prerelease: false
-        title: "${{ env.VERSION }}"
-        files: |
-          "${{ env.VERSION }}".zip
-          version.json
+    # # Create GitHub Release
+    # - name: Release
+    #   uses: "marvinpinto/action-automatic-releases@latest"
+    #   if: github.ref == 'refs/heads/master'
+    #   with:
+    #     repo_token: "${{ secrets.GITHUB_TOKEN }}"
+    #     automatic_release_tag: "${{ env.VERSION }}"
+    #     prerelease: false
+    #     title: "${{ env.VERSION }}"
+    #     files: |
+    #       "${{ env.VERSION }}".zip
+    #       version.json
