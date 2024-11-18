@@ -39,7 +39,7 @@ jobs:
       shell: cmd
       run: |
         call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\Common7\Tools\VsDevCmd.bat"
-        msbuild EQNexus.sln /p:Configuration=Release /p:Platform=x86
+        msbuild EQNexus.sln /p:Configuration=Release /p:Platform=x86 /p:EnableModules=true
 
     - name: Define VERSION
       run: echo "VERSION=${{ env.VERSION }}.${{ github.run_number }}" >> $Env:GITHUB_ENV
