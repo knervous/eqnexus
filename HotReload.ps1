@@ -37,14 +37,14 @@ Write-Host "Found eqgame.exe with PID: $processId"
 $unloadEvent = [System.Threading.EventWaitHandle]::OpenExisting($unloadEventName)
 if ($unloadEvent -eq $null) {
     Write-Host "Unload event $unloadEventName not found."
-    exit 1
+    exit 0
 }
 
 # Open the ReloadEvent
 $reloadEvent = [System.Threading.EventWaitHandle]::OpenExisting($reloadEventName)
 if ($reloadEvent -eq $null) {
     Write-Host "Reload event $reloadEventName not found."
-    exit 1
+    exit 0
 }
 
 # Trigger the UnloadEvent
@@ -73,7 +73,7 @@ while ($attempts -lt $maxAttempts) {
 
 if ($attempts -ge $maxAttempts) {
     Write-Host "Failed to copy core.dll and resources after $maxAttempts attempts."
-    exit 1
+    exit 0
 }
 
 # Trigger the ReloadEvent

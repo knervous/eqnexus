@@ -1,7 +1,7 @@
 // eqgame.ixx
 
 export module eqgame;
-export import <cstdint>;
+import <cstdint>;
 
 // eqgame.exe offsets
 export constexpr uint32_t ClientDate             = 20130510u;
