@@ -13,11 +13,15 @@ jobs:
     runs-on: windows-latest
     steps:
 
-    - name: Checkout
+    - name: Checkout repository with submodules
       uses: actions/checkout@v3
       with:
-        submodules: recursive
+        submodules: true
+        fetch-depth: 0
 
+    - name: List Submodule Contents
+      run: dir external\vcpkg
+      
     - name: Bootstrap vcpkg
       shell: cmd
       run: |
