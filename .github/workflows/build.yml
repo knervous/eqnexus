@@ -16,8 +16,13 @@ jobs:
     - name: Checkout repository with submodules
       uses: actions/checkout@v3
       with:
-        submodules: true
+        submodules: recursive
         fetch-depth: 0
+
+    - name: Manually Install Submodules
+      run: |
+        git submodule status
+        git submodule update --init --recursive
 
     - name: List Submodule Contents
       run: dir external\vcpkg
