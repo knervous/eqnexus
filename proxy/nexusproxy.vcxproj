@@ -105,6 +105,9 @@
       <ModuleDefinitionFile>dinput8.def</ModuleDefinitionFile>
       <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PropertyGroup>
+      <PostBuildSkip Condition="'$(SKIP_POST_BUILD)' == 'true'">true</PostBuildSkip>
+    </PropertyGroup>
     <PostBuildEvent>
       <Command>copy "$(SolutionDir)$(Configuration)\dinput8.dll" "$(SolutionDir)..\everquest_rof2\dinput8.dll"</Command>
     </PostBuildEvent>
@@ -135,6 +138,9 @@
       <ModuleDefinitionFile>dinput8.def</ModuleDefinitionFile>
       <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PropertyGroup>
+      <PostBuildSkip Condition="'$(SKIP_POST_BUILD)' == 'true'">true</PostBuildSkip>
+    </PropertyGroup>
     <PostBuildEvent>
       <Command>copy "$(SolutionDir)$(Configuration)\dinput8.dll" "$(SolutionDir)..\everquest_rof2\dinput8.dll"</Command>
     </PostBuildEvent>
