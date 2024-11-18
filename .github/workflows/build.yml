@@ -13,7 +13,7 @@ jobs:
     runs-on: windows-latest
     steps:
 
-    - name: Checkout repository with submodules
+    - name: Checkout repository
       uses: actions/checkout@v3
      
     - name: vcpkg build
@@ -23,6 +23,8 @@ jobs:
         triplet: x86-windows-static
         token: ${{ github.token }}
         github-binarycache: true
+
+
       
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v1
@@ -30,10 +32,15 @@ jobs:
     - name: Define Environment Variables
       run: echo "SKIP_POST_BUILD=true" >> $Env:GITHUB_ENV
 
+    - name: Integrate vcpkg with MSBuild
+      shell: cmd
+      run: |
+        vcpkg\vcpkg.exe integrate install
+
     - name: Build Solution
       shell: cmd
       run: |
-        call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars32.bat"
+        call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\Common7\Tools\VsDevCmd.bat"
         msbuild EQNexus.sln /p:Configuration=Release /p:Platform=x86
 
     - name: Define VERSION
