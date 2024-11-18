@@ -15,30 +15,16 @@ jobs:
 
     - name: Checkout repository with submodules
       uses: actions/checkout@v3
+     
+    - name: vcpkg build
+      uses: johnwason/vcpkg-action@v6
+      id: vcpkg
       with:
-        submodules: recursive
-        fetch-depth: 0
-
-    - name: Manually Install Submodules
-      run: |
-        git submodule status
-        git submodule update --init --recursive
-
-    - name: List Submodule Contents
-      run: dir external\vcpkg
+        pkgs: minhook rapidjson minizip xxhash stb
+        triplet: x86-windows-static
+        token: ${{ github.token }}
+        github-binarycache: true
       
-    - name: Bootstrap vcpkg
-      shell: cmd
-      run: |
-        cd external/vcpkg
-        .\bootstrap-vcpkg.bat
-
-    - name: Install vcpkg dependencies
-      shell: cmd
-      run: |
-        cd external/vcpkg
-        .\vcpkg.exe install --triplet x86-windows-static
-
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v1
 
