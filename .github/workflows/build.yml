@@ -36,10 +36,15 @@ jobs:
       run: |
         vcpkg\vcpkg.exe integrate install
 
-    - name: Build Solution
+    - name: Build Proxy
       shell: cmd
       run: |
         msbuild proxy/NexusProxy.vcxproj /p:Configuration=Release /p:Platform=x86 /p:EnableModules=true
+
+    - name: Build Core
+      shell: cmd
+      run: |
+        msbuild core/core.vcxproj /p:Configuration=Release /p:Platform=x86 /p:EnableModules=true
 
     - name: Cache Module Files
       uses: actions/cache@v3
