@@ -20,7 +20,6 @@ jobs:
       uses: johnwason/vcpkg-action@v6
       id: vcpkg
       with:
-        pkgs: minhook rapidjson minizip xxhash stb
         triplet: x86-windows-static
         token: ${{ github.token }}
         github-binarycache: true
