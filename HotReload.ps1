@@ -47,6 +47,27 @@ if ($reloadEvent -eq $null) {
     exit 0
 }
 
+# Verify target paths
+if (!(Test-Path -Path $coreDllSource)) {
+    Write-Host "Source core.dll does not exist: $coreDllSource. Exiting."
+    exit 0
+}
+
+if (!(Test-Path -Path $resourcesSource)) {
+    Write-Host "Resources folder does not exist: $resourcesSource. Exiting."
+    exit 0
+}
+
+if (!(Test-Path -Path (Split-Path -Parent $coreDllDestination))) {
+    Write-Host "Target directory for core.dll does not exist: $coreDllDestination. Exiting."
+    exit 0
+}
+
+if (!(Test-Path -Path $resourcesDestination)) {
+    Write-Host "Target directory for resources does not exist: $resourcesDestination. Exiting."
+    exit 0
+}
+
 # Trigger the UnloadEvent
 Write-Host "Triggering UnloadEvent..."
 $unloadEvent.Set()
