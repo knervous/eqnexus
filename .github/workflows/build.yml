@@ -15,6 +15,9 @@ jobs:
 
     - name: Checkout repository
       uses: actions/checkout@v3
+
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v1
      
     - name: vcpkg build
       uses: johnwason/vcpkg-action@v6
@@ -23,11 +26,6 @@ jobs:
         triplet: x86-windows-static
         token: ${{ github.token }}
         github-binarycache: true
-
-
-      
-    - name: Setup MSBuild
-      uses: microsoft/setup-msbuild@v1
 
     - name: Define Environment Variables
       run: echo "SKIP_POST_BUILD=true" >> $Env:GITHUB_ENV
