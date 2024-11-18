@@ -108,10 +108,13 @@
     <PropertyGroup>
       <PostBuildSkip Condition="'$(SKIP_POST_BUILD)' == 'true'">true</PostBuildSkip>
     </PropertyGroup>
-    <PostBuildEvent>
+    <!-- Conditional PostBuildEvent -->
+    <PostBuildEvent Condition="'$(PostBuildSkip)' != 'true'">
       <Command>copy "$(SolutionDir)$(Configuration)\dinput8.dll" "$(SolutionDir)..\everquest_rof2\dinput8.dll"</Command>
     </PostBuildEvent>
-    <CustomBuildStep>
+
+    <!-- Conditional CustomBuildStep -->
+    <CustomBuildStep Condition="'$(PostBuildSkip)' != 'true'">
       <Command>copy "$(SolutionDir)$(Configuration)\dinput8.dll" "$(SolutionDir)..\everquest_rof2\dinput8.dll"</Command>
     </CustomBuildStep>
   </ItemDefinitionGroup>
@@ -141,7 +144,7 @@
     <PropertyGroup>
       <PostBuildSkip Condition="'$(SKIP_POST_BUILD)' == 'true'">true</PostBuildSkip>
     </PropertyGroup>
-    <PostBuildEvent>
+    <PostBuildEvent  Condition="'$(PostBuildSkip)' != 'true'">
       <Command>copy "$(SolutionDir)$(Configuration)\dinput8.dll" "$(SolutionDir)..\everquest_rof2\dinput8.dll"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>

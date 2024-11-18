@@ -111,7 +111,7 @@
     <PropertyGroup>
       <PostBuildSkip Condition="'$(SKIP_POST_BUILD)' == 'true'">true</PostBuildSkip>
     </PropertyGroup>
-    <PostBuildEvent>
+    <PostBuildEvent  Condition="'$(PostBuildSkip)' != 'true'">
       <Command>powershell -ExecutionPolicy Bypass -File "$(SolutionDir)HotReload.ps1"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -143,7 +143,7 @@
     <PropertyGroup>
       <PostBuildSkip Condition="'$(SKIP_POST_BUILD)' == 'true'">true</PostBuildSkip>
     </PropertyGroup>
-    <PostBuildEvent>
+    <PostBuildEvent  Condition="'$(PostBuildSkip)' != 'true'">
       <Command>powershell -ExecutionPolicy Bypass -File "$(SolutionDir)HotReload.ps1" Release</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
