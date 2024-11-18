@@ -21,13 +21,13 @@ jobs:
     - name: Bootstrap vcpkg
       shell: cmd
       run: |
-        cd external\vcpkg
+        cd external/vcpkg
         .\bootstrap-vcpkg.bat
 
     - name: Install vcpkg dependencies
       shell: cmd
       run: |
-        cd external\vcpkg
+        cd external/vcpkg
         .\vcpkg.exe install --triplet x86-windows-static
 
     - name: Setup MSBuild
