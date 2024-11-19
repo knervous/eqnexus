@@ -12,6 +12,7 @@ import options;
 import <string>;
 import <iostream>;
 import <fstream>;
+import <tuple>;
 import <rapidjson/document.h>;
 
 export class Config
@@ -25,6 +26,10 @@ export class Config
     static void Teardown()
     {
         Server::RemoveCallback("Config");
+    }
+
+    static std::tuple<bool, std::string> PreventLogin() {
+        return OptionsConfig::PreventLogin();
     }
 
    private:

@@ -5,6 +5,7 @@ import <windows.h>;
 import <iomanip>;
 import <stdexcept>;
 import <iostream>;
+import <iomanip>;
 import <atomic>;
 import <memory>;
 import <sstream>;
@@ -19,6 +20,7 @@ import <format>;
 import <xxhash.h>;
 import <rapidjson/document.h>;
 #include <commdlg.h>
+#include <Psapi.h>
 
 namespace fs = std::filesystem;
 
@@ -262,6 +264,51 @@ ExtractFilename(const std::string& filePath)
         return "";
     }
 }
+
+// Function to get the name of the module at a specific address
+std::string
+GetModuleName(uintptr_t address)
+{
+    HMODULE hModule           = nullptr;
+    char moduleName[MAX_PATH] = {0};
+
+    if (GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, (LPCSTR) address, &hModule))
+    {
+        if (GetModuleFileNameA(hModule, moduleName, MAX_PATH))
+        {
+            return std::string(moduleName);
+        }
+    }
+
+    return "<Unknown Module>";
+}
+
+// Function to check if an address is hooked and return the target address
+bool
+IsHooked(uintptr_t address, uintptr_t& hookTarget)
+{
+    const size_t instructionSize = 5;  // JMP or CALL instructions are 5 bytes long
+    BYTE buffer[instructionSize] = {0};
+
+    // Read the first few bytes of the function
+    if (!ReadProcessMemory(GetCurrentProcess(), (LPCVOID) address, buffer, sizeof(buffer), nullptr))
+    {
+        std::cerr << "Failed to read memory at address: 0x" << std::hex << address << std::endl;
+        return false;
+    }
+
+    // Check for JMP (0xE9) or CALL (0xE8) instructions
+    if (buffer[0] == 0xE9 || buffer[0] == 0xE8)
+    {
+        // Calculate the jump/call target address
+        int32_t offset = *reinterpret_cast<int32_t*>(&buffer[1]);
+        hookTarget     = address + instructionSize + offset;
+        return true;
+    }
+
+    return false;
+}
+
 
 class AtomicString
 {

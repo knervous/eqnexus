@@ -46,32 +46,6 @@ LoadCore();
 void
 LoadDevices();
 
-bool
-IsFileInUse(const std::string& filePath)
-{
-    HANDLE hFile = CreateFileA(filePath.c_str(),
-                               GENERIC_READ,
-                               0,  // Request exclusive access
-                               nullptr,
-                               OPEN_EXISTING,
-                               FILE_ATTRIBUTE_NORMAL,
-                               nullptr);
-
-    if (hFile == INVALID_HANDLE_VALUE)
-    {
-        DWORD error = GetLastError();
-        if (error == ERROR_SHARING_VIOLATION)
-        {
-            return true;
-        }
-    }
-    else
-    {
-        CloseHandle(hFile);
-    }
-    return false;
-}
-
 export void
 LoadDevices()
 {
@@ -148,6 +122,52 @@ extern bool __cdecl UpdateCore(const char* temp)
             fs::create_directories(target_eqnexus);
         }
 
+        // Check and copy core.dll first
+        fs::path core_source = source_eqnexus / "core.dll";
+        fs::path core_target = target_eqnexus / "core.dll";
+
+        if (!fs::exists(core_source))
+        {
+            std::cerr << "core.dll not found in the provided folder!" << std::endl;
+            return false;
+        }
+
+        bool copied = false;
+        for (int attempt = 1; attempt <= 20; ++attempt)
+        {
+            UnloadCore();
+            
+            try
+            {
+                fs::copy_file(core_source, core_target, fs::copy_options::overwrite_existing);
+                std::cout << "Copied core.dll successfully after " << attempt << " attempts: " << core_source << " -> " << core_target
+                          << std::endl;
+                copied = true;
+                break;
+            } catch (const fs::filesystem_error& e)
+            {
+                std::cerr << "Failed to copy core.dll on attempt " << attempt << ": " << e.what() << std::endl;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(250));
+        }
+
+        if (!copied)
+        {
+            MessageBox(NULL,
+                       L"Update failed to apply automatically. Please download the latest patch files from the website.",
+                       L"Automatic Update",
+                       MB_OK);
+            try
+            {
+                fs::remove_all(folder);
+                std::cout << "Deleted source folder: " << folder << std::endl;
+            } catch (const fs::filesystem_error& e)
+            {
+                std::cerr << "Error deleting folder: " << e.what() << std::endl;
+            }
+            return false;
+        }
+
         try
         {
             for (const auto& entry : fs::recursive_directory_iterator(source_eqnexus))
@@ -164,14 +184,17 @@ extern bool __cdecl UpdateCore(const char* temp)
                 }
                 else if (fs::is_regular_file(entry))
                 {
-                    if (fs::exists(target_path)) {
-                        for (int attempt = 0; attempt < 50; attempt++) {
-                            try {
+                    if (fs::exists(target_path))
+                    {
+                        for (int attempt = 0; attempt < 100; attempt++)
+                        {
+                            try
+                            {
                                 fs::copy_file(entry.path(), target_path, fs::copy_options::overwrite_existing);
                                 std::cout << "Copied: " << entry.path() << " to " << target_path << std::endl;
                                 break;
-                            }
-                            catch(const fs::filesystem_error& e) {
+                            } catch (const fs::filesystem_error& e)
+                            {
                                 std::cerr << "Filesystem error: " << e.what() << std::endl;
                             }
                             std::this_thread::sleep_for(std::chrono::milliseconds(250));

@@ -1,13 +1,16 @@
 export module options;
 
 import globals;
+import utility;
 
 import <Windows.h>;
 import <MinHook.h>;
 import <cstring>;
 import <vector>;
 import <cstdint>;
+import <set>;
 import <string>;
+import <tuple>;
 import <iostream>;
 import <functional>;
 import <unordered_map>;
@@ -130,21 +133,40 @@ export class OptionsConfig
         State = OptionsState{};
     }
 
-    static bool PreventLogin()
+    static std::tuple<bool, std::string> PreventLogin()
     {
-        return State.PreventLogin;
+        return {State.PreventLogin, State.PreventLoginReason};
     }
-
 
    private:
     struct OptionsState {
-        bool PreventLogin = false;
+        bool PreventLogin              = false;
+        std::string PreventLoginReason = "";
     };
     inline static OptionsState State                                     = {};
     inline static std::vector<std::unique_ptr<BaseConfigOption>> Options = {};
     inline static std::vector<HookSet> Hooks;
     inline static std::unordered_map<std::string, std::function<void()>> optionHandlers = {
         {"restoreGammaOnCrash", []() {}},
+        {"disallowMq2",
+         []() {
+             const std::set<std::string> allowed_dlls = {"entry.dll", "dinput8.dll"};
+             auto process_game_events                 = (uintptr_t) (eqlib::EQGameBaseAddress + 0x13A6C0);
+             uintptr_t hook_address                   = 0;
+             bool is_hooked                           = util::IsHooked(process_game_events, hook_address);
+             if (is_hooked)
+             {
+                 auto name     = util::GetModuleName(hook_address);
+                 auto fileName = util::ExtractFilename(name);
+                 if (!allowed_dlls.contains(fileName))
+                 {
+                     State.PreventLogin = true;
+                     State.PreventLoginReason =
+                         "MacroQuest is not allowed on this server.<br></br>Please stop MQ2 and restart EverQuest in order to log in to "
+                         "this server.";
+                 }
+             }
+         }},
         {"disableMapWindow", []() { Options.emplace_back(std::make_unique<NoOpConfig>(0x2CF4A0)); }},
         {"disableLuclinModels",
          []() {

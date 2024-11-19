@@ -248,7 +248,7 @@ export class ServerInfo
         }
         nk_label(ctx, nk_util::TruncateTextWithEllipsis(ctx, longName.c_str(), 200.0f).c_str(), NK_TEXT_LEFT);
 
-        if (clientServer)
+        if (Login::InServerSelect())
         {
             if (nk_button_label(ctx, "Server Info"))
             {

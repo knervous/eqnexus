@@ -19,7 +19,7 @@ import <functional>;
 import <thread>;
 
 using login_callback_t    = std::function<bool(int)>;
-using login_char_select_t = void(__fastcall*)(uintptr_t This, uintptr_t Reg);
+using login_server_select_t = void(__fastcall*)(uintptr_t This, uintptr_t Reg);
 using do_login_t          = int(__fastcall*)(uintptr_t This, uintptr_t Reg, int server_id, uintptr_t user_data, int timeout);
 using show_msg_t          = void(__fastcall*)(uintptr_t This, uintptr_t Reg, void* a2, int a3, volatile signed int* a4, void* a5, void* a6);
 using process_packet_t    = void(__fastcall*)(uintptr_t This, uintptr_t Reg, unsigned char* data, uintptr_t a2);
@@ -47,9 +47,9 @@ export class Login
         NextUnknownMessage = msg;
     }
 
-    static const bool InCharSelect()
+    static const bool InServerSelect()
     {
-        return LoggedIntoCharSelect;
+        return LoggedIntoServerSelect;
     }
 
     static void LoginToServer(int server_id)
@@ -89,8 +89,8 @@ export class Login
              &Login::GetTableString,
              reinterpret_cast<LPVOID*>(&Original_GetTableString)},
             {reinterpret_cast<LPVOID>(eqlib::EQMainBaseAddress + 0x37DD0),
-             &Login::LoginToCharSelect,
-             reinterpret_cast<LPVOID*>(&Original_LoginToCharSelect)},
+             &Login::LoginToServerSelect,
+             reinterpret_cast<LPVOID*>(&Original_LoginToServerSelect)},
         };
 
         for (const auto& [target, detour, original] : Hooks)
@@ -113,7 +113,7 @@ export class Login
         D3D9Hooks::Teardown();
         Hooks.clear();
         DialogInstance       = 0;
-        LoggedIntoCharSelect = false;
+        LoggedIntoServerSelect = false;
     }
 
     static void Init()
@@ -148,7 +148,7 @@ export class Login
     inline static process_packet_t Original_ProcessPacket        = nullptr;
     inline static get_tablestring_t Original_GetTableString      = nullptr;
     inline static load_eqmain Original_LoadEQMain                = nullptr;
-    inline static login_char_select_t Original_LoginToCharSelect = nullptr;
+    inline static login_server_select_t Original_LoginToServerSelect = nullptr;
     inline static login_callback_t LoginCallback                 = nullptr;
     inline static uintptr_t LoginInstance                        = 0;
     inline static unsigned long DialogInstance                   = 0;
@@ -159,11 +159,11 @@ export class Login
     inline static int StringTableIndex                                = 500'000;
     inline static std::vector<std::tuple<LPVOID, LPVOID, LPVOID*>> Hooks;
     inline static std::vector<std::tuple<LPVOID, LPVOID, LPVOID*>> BaseHooks;
-    inline static bool LoggedIntoCharSelect = false;
-    static void __fastcall LoginToCharSelect(uintptr_t This, uintptr_t Reg)
+    inline static bool LoggedIntoServerSelect = false;
+    static void __fastcall LoginToServerSelect(uintptr_t This, uintptr_t Reg)
     {
-        LoggedIntoCharSelect = true;
-        return Original_LoginToCharSelect(This, Reg);
+        LoggedIntoServerSelect = true;
+        return Original_LoginToServerSelect(This, Reg);
     }
 
     static const char* __fastcall GetTableString(uintptr_t This, uintptr_t Reg, int entry, void* data)
@@ -197,7 +197,7 @@ export class Login
             case 0x22:  // PlayEverQuestResponse
             {
                 // If we haven't hit login screen yet and are trying to log in, let's validate
-                if (!LoggedIntoCharSelect)
+                if (!LoggedIntoServerSelect)
                 {
                     auto server_id = (int) data[32];
                     if (LoginCallback && LoginCallback(server_id))

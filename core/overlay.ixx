@@ -11,6 +11,7 @@ import server;
 import nk;
 import server_info;
 import updater;
+import config;
 
 import <windows.h>;
 import <d3d9.h>;
@@ -28,7 +29,7 @@ import <fstream>;
 
 namespace fs = std::filesystem;
 
-constexpr std::string_view ini_path     = "eqnexus/config.ini";
+constexpr std::string_view ini_path = "eqnexus/config.ini";
 
 export class EQOverlay
 {
@@ -62,18 +63,19 @@ export class EQOverlay
     IDirect3DTexture9* bg_texture  = nullptr;
     DIMOUSESTATE mouse_state{};
     char keyboard_state[256]{};
-    int mouse_x                = 0;
-    int mouse_y                = 0;
-    float window_x             = 0xFFFF;
-    float window_y             = 0xFFFF;
-    float window_width         = 300;
-    float window_height        = 200;
-    bool nuklear_initialized   = false;
-    std::string file_processed = "";
-    std::string release_url    = "";
-    std::string core_version   = "";
-    nk_context* ctx            = nullptr;
-    nk_font_atlas* atlas       = nullptr;
+    int mouse_x                     = 0;
+    int mouse_y                     = 0;
+    float window_x                  = 0xFFFF;
+    float window_y                  = 0xFFFF;
+    float window_width              = 300;
+    float window_height             = 200;
+    bool nuklear_initialized        = false;
+    std::string file_processed      = "";
+    std::string release_url         = util::ReadIniValue("ServerMetadata", "ReleaseUrl", ini_path);
+    std::string core_version        = util::ReadIniValue("Version", "CoreVersion", ini_path);
+    std::string latest_core_version = "";
+    nk_context* ctx                 = nullptr;
+    nk_font_atlas* atlas            = nullptr;
     nk_font* header_font;
     nk_font* body_font;
     nk_color bg        = {2, 5, 16};
@@ -83,7 +85,7 @@ export class EQOverlay
     CoreVersion version;
     bool task_running          = false;
     bool version_warning_shown = false;
-    bool has_latest            = false;
+    bool has_latest            = true;
 #ifdef DEV
     nk_bool skip_validation = false;
 #endif
@@ -112,8 +114,6 @@ export class EQOverlay
         status                = "Fetching Server Metadata...";
         const auto url        = util::ReadIniValue("ServerMetadata", "ManifestUrl", ini_path);
         const auto latest_url = util::ReadIniValue("ServerMetadata", "LatestUrl", ini_path);
-        core_version          = util::ReadIniValue("Version", "CoreVersion", ini_path);
-        release_url           = util::ReadIniValue("ServerMetadata", "ReleaseUrl", ini_path);
         server_op             = util::ReadIniValue("ServerMetadata", "ServerOp", ini_path) == "true";
         servers.clear();
         std::thread t([this, url, latest_url]() {
@@ -141,15 +141,15 @@ export class EQOverlay
                     return;
                 }
 
-                auto latest_core_version = std::string(latest_document["version"].GetString());
-                auto filename            = std::string(latest_document["filename"].GetString());
+                latest_core_version = std::string(latest_document["version"].GetString());
+                auto filename       = std::string(latest_document["filename"].GetString());
 
                 version = CoreVersion{latest_core_version, filename};
 
                 if (core_version != latest_core_version && !version_warning_shown)
                 {
                     version_warning_shown = true;
-                    std::thread t([this, latest_core_version]() {
+                    std::thread t([this]() {
                         while (!Login::DidRetrieveServers())
                         {
                             std::this_thread::sleep_for(std::chrono::milliseconds(500));
@@ -159,16 +159,14 @@ export class EQOverlay
                                   "\">" + release_url + "</a> or click 'Update Core'");
                     });
                     t.detach();
+                    has_latest = false;
                 }
                 else
                 {
                     has_latest = true;
                 }
 
-                status = "Core Version: " + core_version;
-                if (core_version != latest_core_version) {
-                    status += " (Latest: " + latest_core_version + ")";
-                }
+                status = "";
                 for (const auto& server : document["servers"].GetArray())
                 {
                     if (server.HasMember("manifest") && server["manifest"].IsString())
@@ -261,15 +259,26 @@ export class EQOverlay
         struct nk_rect window_rect       = nk_rect(window_x, window_y, window_width, window_height);
         struct nk_rect window_rect_popup = nk_rect(window_x - window_width - 20, window_y, window_width, 150);
 
+        std::string msg("EQ Nexus");
+        msg += util::Interpolate(" (version {})", core_version);
         nk_style_push_font(ctx, &header_font->handle);
         if (nk_begin(ctx,
-                     "EQ Nexus Server Patcher",
+                     msg.c_str(),
                      window_rect,
                      NK_WINDOW_BORDER | NK_WINDOW_MOVABLE | NK_WINDOW_SCALABLE | NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE))
         {
             nk_style_pop_font(ctx);
-            nk_layout_row_dynamic(ctx, 30, 1);
-            nk_label(ctx, status.c_str(), NK_TEXT_CENTERED);
+
+            if (!has_latest)
+            {
+                nk_layout_row_dynamic(ctx, 25, 1);
+                std::string update_text("Update To Version " + latest_core_version);
+                if (nk_button_label(ctx, update_text.c_str()))
+                {
+                    CoreUpdater::UpdateCore(version, release_url);
+                }
+            }
+
             nk_layout_row_dynamic(ctx, 25, 2);
             bool processing = !file_processed.empty();
             bool validating = false;
@@ -277,34 +286,30 @@ export class EQOverlay
             {
                 validating = validating || server->IsValidating();
             }
-            std::string update_text(has_latest ? "Nexus Up To Date" : "Update Nexus");
-            nk_style_push_vec2(ctx, &s->button.padding, nk_vec2(15.0f, s->button.padding.y));  // Left and right padding
+            nk_style_push_vec2(ctx, &s->button.padding, nk_vec2(15.0f, s->button.padding.y));
 
             if (processing || task_running || validating)
             {
-                nk_util::RenderDisabledButton(ctx, "Refresh Server List");
-                nk_util::RenderDisabledButton(ctx, update_text.c_str());
+                nk_util::RenderDisabledButton(ctx, "Refresh");
             }
             else
             {
-                if (nk_button_label(ctx, "Refresh Server List"))
+                if (nk_button_label(ctx, "Refresh"))
                 {
                     FetchServerData();
                 }
-                if (!has_latest)
-                {
-                    if (nk_button_label(ctx, update_text.c_str()))
-                    {
-                        CoreUpdater::UpdateCore(version, release_url);
-                    }
-                }
-                else
-                {
-                    nk_util::RenderDisabledButton(ctx, update_text.c_str());
-                }
+            }
+            if (nk_button_label(ctx, "Website"))
+            {
+                HINSTANCE result = ShellExecuteA(nullptr, "open", release_url.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
             }
 
             nk_style_pop_vec2(ctx);
+            if (!status.empty())
+            {
+                nk_layout_row_dynamic(ctx, 30, 1);
+                nk_label(ctx, status.c_str(), NK_TEXT_CENTERED);
+            }
 
             if (server_op)
             {
@@ -493,6 +498,13 @@ export class EQOverlay
                     return true;
                 }
                 Server::SetContext(server->GetShortName());
+                auto [prevented, reason] = Config::PreventLogin();
+                if (prevented)
+                {
+                    Login::InterceptUnknown(reason.c_str());
+                    Server::SetContext("");
+                    return true;
+                }
                 return false;
             }
         }
