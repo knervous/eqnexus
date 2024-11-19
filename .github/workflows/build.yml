@@ -59,56 +59,9 @@ jobs:
     - name: Define VERSION
       run: echo "VERSION=${{ env.VERSION }}.${{ github.run_number }}" >> $Env:GITHUB_ENV
 
-    - name: Run PowerShell script
+    - name: Run Build and Package Script
       shell: pwsh
-      run: |
-        $version = $env:VERSION
-        $zipFilename = "eqnexus-$version.zip"
-
-        $dinput8Path = Join-Path -Path 'Release' -ChildPath 'dinput8.dll'
-        $coreDllPath = Join-Path -Path 'Release' -ChildPath 'core.dll'
-        $resourcesFolder = Join-Path -Path (Get-Location) -ChildPath 'resources'
-
-        $versionFile = @{
-            version = $version
-            filename = $zipFilename
-        }
-        $versionJson = ConvertTo-Json -InputObject $versionFile -Depth 4
-        Set-Content -Path 'version.json' -Value $versionJson -Encoding utf8
-
-        $configPath = Join-Path -Path $resourcesFolder -ChildPath 'config.ini'
-        if (Test-Path -Path $configPath) {
-            $config = Get-Content -Path $configPath | ConvertFrom-Ini
-        } else {
-            Write-Host "config.ini does not exist. Creating a new one."
-            $config = @{}
-        }
-        $config.Version.CoreVersion = $version
-        $configContent = ConvertTo-Ini -InputObject $config
-        Set-Content -Path $configPath -Value $configContent -Encoding utf8
-
-        Write-Host "Updated config.ini with CoreVersion=$version"
-
-        $zip = [io.compression.zipfile]::CreateFromDirectory
-        $outputStream = New-Object IO.FileStream($zipFilename, [IO.FileMode]::Create)
-        $archive = New-Object IO.Compression.ZipArchive($outputStream, [IO.Compression.ZipArchiveMode]::Create)
-
-        $archive.CreateEntryFromFile($dinput8Path, 'dinput8.dll')
-        $archive.CreateEntryFromFile($coreDllPath, 'eqnexus/core.dll')
-
-        Get-ChildItem -Path $resourcesFolder -Recurse | ForEach-Object {
-            if ($_.PSIsContainer) {
-                $archive.CreateEntryFromDirectory($_.FullName, "eqnexus/resources/$($_.Name)")
-            } else {
-                $relativePath = $_.FullName.Substring($resourcesFolder.Length + 1)
-                $archive.CreateEntryFromFile($_.FullName, "eqnexus/resources/$relativePath")
-            }
-        }
-
-        $archive.Dispose()
-        $outputStream.Dispose()
-
-        Write-Host "Created zip file $zipFilename"
+      run: pwsh ./scripts/build-and-package.ps1 -Version ${{ env.VERSION }}
 
     # Create GitHub Release
     - name: Release
