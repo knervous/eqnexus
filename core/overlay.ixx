@@ -95,7 +95,7 @@ export class EQOverlay
         RECT clientRect;
         if (GetClientRect(GetActiveWindow(), &clientRect))
         {
-            window_width  = 330;
+            window_width  = 300;
             window_height = ((clientRect.bottom - clientRect.top) / 2);
             window_x      = (clientRect.right - clientRect.left) - (window_width + 10);
             window_y      = 10;
@@ -145,8 +145,8 @@ export class EQOverlay
                 auto filename       = std::string(latest_document["filename"].GetString());
 
                 version = CoreVersion{latest_core_version, filename};
-
-                if (core_version != latest_core_version && !version_warning_shown)
+                has_latest = core_version == latest_core_version;
+                if (!has_latest && !version_warning_shown)
                 {
                     version_warning_shown = true;
                     std::thread t([this]() {
@@ -159,11 +159,6 @@ export class EQOverlay
                                   "\">" + release_url + "</a> or click 'Update Core'");
                     });
                     t.detach();
-                    has_latest = false;
-                }
-                else
-                {
-                    has_latest = true;
                 }
 
                 status = "";

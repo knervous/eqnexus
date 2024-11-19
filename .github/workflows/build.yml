@@ -71,7 +71,7 @@ jobs:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
         automatic_release_tag: "${{ env.VERSION }}"
         prerelease: false
-        title: "${{ env.VERSION }}"
+        title: "EQ Nexus v${{ env.VERSION }}"
         files: |
           eqnexus-${{ env.VERSION }}.zip
           version.json

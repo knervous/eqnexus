@@ -78,9 +78,11 @@ $TempDir = Join-Path -Path ([System.IO.Path]::GetTempPath()) -ChildPath ([System
 New-Item -ItemType Directory -Path $TempDir | Out-Null
 # Copy files
 Copy-Item -Path "$ProxyReleasePath\dinput8.dll" -Destination $TempDir
+Copy-Item -Path "$ProxyReleasePath\dinput8.pdb" -Destination $TempDir
 $EqNexusDir = Join-Path $TempDir "eqnexus"
 New-Item -ItemType Directory -Path $EqNexusDir | Out-Null
 Copy-Item -Path "$CoreReleasePath\core.dll" -Destination $EqNexusDir
+Copy-Item -Path "$CoreReleasePath\core.pdb" -Destination $EqNexusDir
 Copy-Item -Path "$ResourcesFolder\*" -Destination $EqNexusDir -Recurse
 
 # Zip files

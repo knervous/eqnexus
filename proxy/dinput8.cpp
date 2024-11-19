@@ -157,11 +157,11 @@ HookedCreateInputDevice(IDirectInput8A* pDirectInput,
     }
     if (GetKeyboardDevice() && GetMouseDevice())
     {
-#ifdef __DEV
-        StartDebugPoll();
-        std::signal(SIGINT, SignalHandler);
-        std::atexit(StopDebugPoll);
-#endif
+//#ifdef __DEV
+//        StartDebugPoll();
+//        std::signal(SIGINT, SignalHandler);
+//        std::atexit(StopDebugPoll);
+//#endif
         LoadDevices();
     }
 
