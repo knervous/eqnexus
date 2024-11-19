@@ -86,9 +86,7 @@ export class EQOverlay
     bool task_running          = false;
     bool version_warning_shown = false;
     bool has_latest            = true;
-#ifdef DEV
     nk_bool skip_validation = false;
-#endif
 
     void InitializeBounds()
     {
@@ -478,13 +476,9 @@ export class EQOverlay
                 }
 
                 server->ValidateInstallAsync(true);
-#ifdef DEV
+
                 if (!skip_validation && !server->UpToDate())
                 {
-#else
-                if (!server->UpToDate())
-                {
-#endif
                     Login::InterceptUnknown(
                         "<b>Failed to join custom server<br></br>Your patch files are out "
                         "of date for " +

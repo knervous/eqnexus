@@ -82,9 +82,7 @@ Initialize(void* callback)
     CoreUpdater::SetCallback(callback);
     if (!did_init)
     {
-#ifdef DEV
-        AttachConsoleToDLL();
-#endif
+        // AttachConsoleToDLL();
         SetupCore();
         did_init = true;
     }
