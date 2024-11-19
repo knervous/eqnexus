@@ -76,5 +76,5 @@ jobs:
         prerelease: false
         title: "${{ env.VERSION }}"
         files: |
-          "${{ env.VERSION }}".zip
+          eqnexus-${{ env.VERSION }}.zip
           version.json

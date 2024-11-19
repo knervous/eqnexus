@@ -12,6 +12,12 @@ const dinput8Path = path.resolve('Release', 'dinput8.dll');
 const coreDllPath = path.resolve('Release', 'core.dll');
 const resourcesFolder = path.resolve('resources');
 
+const versionFile = {
+    version, 
+    filename
+}
+
+fs.writeFileSync('version.json', JSON.stringify(versionFile, null, 4));
 
 // Update config.ini
 let config = {};
