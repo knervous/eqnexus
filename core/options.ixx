@@ -127,9 +127,20 @@ export class OptionsConfig
     {
         Options.clear();
         RemoveHooks();
+        State = OptionsState{};
     }
 
+    static bool PreventLogin()
+    {
+        return State.PreventLogin;
+    }
+
+
    private:
+    struct OptionsState {
+        bool PreventLogin = false;
+    };
+    inline static OptionsState State                                     = {};
     inline static std::vector<std::unique_ptr<BaseConfigOption>> Options = {};
     inline static std::vector<HookSet> Hooks;
     inline static std::unordered_map<std::string, std::function<void()>> optionHandlers = {

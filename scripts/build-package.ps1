@@ -1,6 +1,7 @@
 param (
     [string]$Version,
-    [string]$ReleasePath = "Release",
+    [string]$CoreReleasePath = "core/Release",
+    [string]$ProxyReleasePath = "proxy/Release",
     [string]$ResourcesFolder = "resources"
 )
 
@@ -61,7 +62,9 @@ if (Test-Path -Path $ConfigPath) {
     $Config = @{}
 }
 
-$Config["Version"] = $Config["Version"] -or @{}
+if (-not $Config["Version"]) {
+    $Config["Version"] = @{}
+}
 $Config["Version"]["CoreVersion"] = $Version
 $ConfigContent = ConvertTo-Ini -Data $Config
 Set-Content -Path $ConfigPath -Value $ConfigContent -Encoding utf8
@@ -69,15 +72,15 @@ Write-Host "Updated config.ini with CoreVersion=$Version"
 
 # Step 3: Create zip file
 Add-Type -AssemblyName System.IO.Compression.FileSystem
-$TempDir = New-TemporaryFile | Remove-Item -Force -PassThru | Split-Path
-$TempDir = Join-Path $TempDir "package"
-New-Item -ItemType Directory -Path $TempDir | Out-Null
 
+# Create a temporary directory
+$TempDir = Join-Path -Path ([System.IO.Path]::GetTempPath()) -ChildPath ([System.Guid]::NewGuid().ToString())
+New-Item -ItemType Directory -Path $TempDir | Out-Null
 # Copy files
-Copy-Item -Path "$ReleasePath\dinput8.dll" -Destination $TempDir
+Copy-Item -Path "$ProxyReleasePath\dinput8.dll" -Destination $TempDir
 $EqNexusDir = Join-Path $TempDir "eqnexus"
 New-Item -ItemType Directory -Path $EqNexusDir | Out-Null
-Copy-Item -Path "$ReleasePath\core.dll" -Destination $EqNexusDir
+Copy-Item -Path "$CoreReleasePath\core.dll" -Destination $EqNexusDir
 Copy-Item -Path "$ResourcesFolder\*" -Destination $EqNexusDir -Recurse
 
 # Zip files
