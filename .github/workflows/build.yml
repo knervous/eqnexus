@@ -50,8 +50,8 @@ jobs:
       uses: actions/cache@v3
       with:
         path: |
-          proxy/Release
-          core/Release
+          NexusProxy/Release
+          NexusCore/Release
         key: modules-${{ runner.os }}-${{ hashFiles('**/*.ixx') }}
         restore-keys: |
           modules-${{ runner.os }}-
@@ -61,7 +61,7 @@ jobs:
 
     - name: Run Build and Package Script
       shell: pwsh
-      run: pwsh ./scripts/build-and-package.ps1 -Version ${{ env.VERSION }}
+      run: pwsh ./scripts/build-package.ps1 -Version ${{ env.VERSION }}
 
     # Create GitHub Release
     - name: Release
