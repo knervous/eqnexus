@@ -14,6 +14,8 @@ import updater;
 #include <cstdio>
 #include <iostream>
 #include <vector>
+#include <tlhelp32.h>
+#include <Psapi.h>
 
 std::unique_ptr<EQOverlay> eqoverlay = nullptr;
 
@@ -25,17 +27,6 @@ AttachConsoleToDLL()
     freopen_s(&fp, "CONOUT$", "w", stdout);
     freopen_s(&fp, "CONOUT$", "w", stderr);
     std::cout.clear();
-}
-
-void
-WaitForDebugger()
-{
-    std::cout << "Waiting for debugger to attach..." << std::endl;
-    while (!IsDebuggerPresent())
-    {
-        Sleep(100);  // Wait 100 milliseconds before checking again
-    }
-    std::cout << "Debugger attached." << std::endl;
 }
 
 IDirectInputDevice8A* keyboard = nullptr;
@@ -101,6 +92,7 @@ Initialize(void* callback)
     return true;
 }
 
+
 extern "C" __declspec(dllexport) bool
 Teardown()
 {
@@ -115,6 +107,12 @@ Teardown()
     Login::Teardown();
     FileSystem::Teardown();
     Config::Teardown();
+
+    if (MH_DisableHook(MH_ALL_HOOKS) != MH_OK)
+    {
+        std::cerr << "Failed to disable hooks." << std::endl;
+        return false;
+    }
 
     if (MH_Uninitialize() != MH_OK)
     {
@@ -136,6 +134,7 @@ DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
         }
         case DLL_THREAD_DETACH:
         case DLL_PROCESS_DETACH:
+            std::cout << "Called detach" << std::endl;
             break;
     }
     return TRUE;

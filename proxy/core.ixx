@@ -8,6 +8,8 @@ import <cstdio>;
 import <thread>;
 import <chrono>;
 import <filesystem>;
+#include <tlhelp32.h>
+#include <Psapi.h>
 
 namespace fs = std::filesystem;
 
@@ -69,6 +71,7 @@ LoadDevices()
         std::cout << "core.dll not found for LoadDevices";
     }
 }
+
 
 export void
 UnloadCore()
@@ -136,7 +139,7 @@ extern bool __cdecl UpdateCore(const char* temp)
         for (int attempt = 1; attempt <= 20; ++attempt)
         {
             UnloadCore();
-            
+
             try
             {
                 fs::copy_file(core_source, core_target, fs::copy_options::overwrite_existing);
@@ -153,18 +156,32 @@ extern bool __cdecl UpdateCore(const char* temp)
 
         if (!copied)
         {
-            MessageBox(NULL,
-                       L"Update failed to apply automatically. Please download the latest patch files from the website.",
-                       L"Automatic Update",
-                       MB_OK);
-            try
+            HINSTANCE result = ShellExecute(NULL, L"open", fs::path(folder).c_str(), NULL, NULL, SW_SHOWNORMAL);
+
+            if ((int) result <= 32)
             {
-                fs::remove_all(folder);
-                std::cout << "Deleted source folder: " << folder << std::endl;
-            } catch (const fs::filesystem_error& e)
-            {
-                std::cerr << "Error deleting folder: " << e.what() << std::endl;
+                MessageBox(
+                    NULL,
+                    L"Update failed to apply automatically. Please download and copy the patch files manually into the EverQuest directory",
+                    L"Automatic Update",
+                    MB_OK);
+                try
+                {
+                    fs::remove_all(folder);
+                    std::cout << "Deleted source folder: " << folder << std::endl;
+                } catch (const fs::filesystem_error& e)
+                {
+                    std::cerr << "Error deleting folder: " << e.what() << std::endl;
+                }
             }
+            else
+            {
+                MessageBox(NULL,
+                           L"Update failed to apply automatically. Please copy the patch files manually into the EverQuest directory",
+                           L"Automatic Update",
+                           MB_OK);
+            }
+
             return false;
         }
 

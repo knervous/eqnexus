@@ -39,12 +39,12 @@ jobs:
     - name: Build Proxy
       shell: cmd
       run: |
-        msbuild proxy/NexusProxy.vcxproj /p:Configuration=Release /p:Platform=x86 /p:EnableModules=true
+        msbuild proxy/NexusProxy.vcxproj /p:Configuration=Release /p:Platform=x86 /p:EnableModules=true /p:UndefineConstants=DEV
 
     - name: Build Core
       shell: cmd
       run: |
-        msbuild core/core.vcxproj /p:Configuration=Release /p:Platform=x86 /p:EnableModules=true
+        msbuild core/core.vcxproj /p:Configuration=Release /p:Platform=x86 /p:EnableModules=true /p:UndefineConstants=DEV
 
     - name: Cache Module Files
       uses: actions/cache@v3

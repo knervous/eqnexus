@@ -29,7 +29,10 @@ export class CoreUpdater
     {
         std::thread t([core_version, latest_prefix]() {
             const auto zip_url = latest_prefix + "/latest/download/" + core_version.filename;
-            auto folder        = util::GenerateShortGUID();
+            auto folder        = "eqnexus-" + core_version.version;
+            if (fs::exists(folder)) {
+                fs::remove_all(folder);
+            }
             auto zipPath       = folder + "/" + core_version.filename;
             http::DownloadBinary(zip_url, zipPath);
             zipextractor::ExtractAllFilesFromZip(zipPath);
