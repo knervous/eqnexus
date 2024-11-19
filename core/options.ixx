@@ -162,7 +162,7 @@ export class OptionsConfig
                  {
                      State.PreventLogin = true;
                      State.PreventLoginReason =
-                         "MacroQuest is not allowed on this server.<br></br>Please stop MQ2 and restart EverQuest in order to log in to "
+                         "MacroQuest is not allowed on this server.<br></br>Please stop MacroQuest and restart EverQuest in order to log in to "
                          "this server.";
                  }
              }
