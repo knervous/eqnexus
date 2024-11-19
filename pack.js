@@ -14,7 +14,7 @@ const resourcesFolder = path.resolve('resources');
 
 const versionFile = {
     version, 
-    filename
+    filename: zipFilename
 }
 
 fs.writeFileSync('version.json', JSON.stringify(versionFile, null, 4));
