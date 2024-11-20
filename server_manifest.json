@@ -5,6 +5,10 @@
             "manifest": "https://github.com/knervous/eqemupatcher/releases/latest/download/manifest.json"
         },
         {
+            "name": "The Wayfarers Haven",
+            "manifest": "https://github.com/knervous/wayfarershaven-files/releases/latest/download/manifest.json"
+        },
+        {
             "name": "Requiem [DEV]",
             "manifest": "https://github.com/knervous/requiemfiles/releases/latest/download/manifest.json"
         }
