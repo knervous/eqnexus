@@ -18,6 +18,7 @@ import <thread>;
 import <filesystem>;
 import <iostream>;
 import <fstream>;
+import <algorithm>;
 import <chrono>;
 import <memory>;
 import <rapidjson/document.h>;
@@ -39,6 +40,7 @@ export class ServerInfo
                const std::string& description                     = "",
                std::vector<std::string> hosts                     = {},
                std::vector<std::string> required                  = {},
+               std::vector<std::string> ignored                   = {},
                std::unordered_map<std::string, std::string> files = {})
         : shortName(shortname)
         , longName(longname)
@@ -49,17 +51,12 @@ export class ServerInfo
         , description(description)
         , hosts(hosts)
         , required(required)
+        , ignored(ignored)
         , files(files)
     {
     }
 
-    ~ServerInfo()
-    {
-        if (validation_thread.joinable())
-        {
-            validation_thread.join();
-        }
-    }
+    ~ServerInfo() {}
 
     ServerInfo(ServerInfo&& other) noexcept
         : shortName(std::move(other.shortName))
@@ -70,6 +67,7 @@ export class ServerInfo
         , description(std::move(other.description))
         , hosts(std::move(other.hosts))
         , required(std::move(other.required))
+        , ignored(std::move(other.ignored))
         , files(std::move(other.files))
         , up_to_date(other.up_to_date)
         , downloading(other.downloading)
@@ -145,7 +143,8 @@ export class ServerInfo
         return running_validation;
     }
 
-    void StopValidation() {
+    void StopValidation()
+    {
         if (validation_thread.joinable())
         {
             yield_validation = true;
@@ -207,6 +206,10 @@ export class ServerInfo
                 result = false;
                 for (const auto& pair : files)
                 {
+                    if (std::find(ignored.begin(), ignored.end(), pair.first) != ignored.end())
+                    {
+                        continue;
+                    }
                     outOfDateFiles.push_back(pair.first);
                 }
             }
@@ -214,11 +217,15 @@ export class ServerInfo
             {
                 if (files.size() > 0)
                 {
-                    for (const auto& [file, hash] : files)
+                    for (auto& [file, hash] : files)
                     {
                         if (yield_validation)
                         {
                             break;
+                        }
+                        if (std::find(ignored.begin(), ignored.end(), file) != ignored.end())
+                        {
+                            continue;
                         }
                         fs::path path(root_path);
                         validation_status.setString(util::Interpolate("Checking {}", util::ExtractFilename(file)));
@@ -376,6 +383,13 @@ export class ServerInfo
         }
         document.AddMember("required", requiredArray, allocator);
 
+        Value ignoredArray(kArrayType);
+        for (const auto& ignored_file : ignored)
+        {
+            requiredArray.PushBack(Value(ignored_file.c_str(), allocator), allocator);
+        }
+        document.AddMember("ignored", ignoredArray, allocator);
+
         Value filesObject(kObjectType);
         for (const auto& file : files)
         {
@@ -409,6 +423,8 @@ export class ServerInfo
         auto websiteCopy        = website;
         auto descriptionCopy    = description;
         auto hostsCopy          = hosts;
+        auto requiredCopy       = required;
+        auto ignoredCopy        = ignored;
         auto filesCopy          = files;
 
         std::thread t([this,
@@ -421,6 +437,8 @@ export class ServerInfo
                        websiteCopy,
                        descriptionCopy,
                        hostsCopy,
+                       requiredCopy,
+                       ignoredCopy,
                        filesCopy]() {
             auto server = ServerInfo(shortNameCopy,
                                      longNameCopy,
@@ -474,6 +492,7 @@ export class ServerInfo
     std::string description                            = "";
     std::vector<std::string> hosts                     = {};
     std::vector<std::string> required                  = {};
+    std::vector<std::string> ignored                   = {};
     std::vector<std::string> outOfDateFiles            = {};
     std::unordered_map<std::string, std::string> files = {};
 

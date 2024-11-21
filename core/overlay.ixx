@@ -175,6 +175,7 @@ export class EQOverlay
 
                             std::vector<std::string> hosts                     = {};
                             std::vector<std::string> required                  = {};
+                            std::vector<std::string> ignored                  = {};
                             std::unordered_map<std::string, std::string> files = {};
                             for (const auto& host : serverDocument["hosts"].GetArray())
                             {
@@ -187,6 +188,14 @@ export class EQOverlay
                                 {
                                     if (required_file.IsString())
                                         required.push_back(required_file.GetString());
+                                }
+                            }
+                            if (serverDocument.HasMember("ignored") && serverDocument["ignored"].IsArray())
+                            {
+                                for (const auto& ignored_file : serverDocument["ignored"].GetArray())
+                                {
+                                    if (ignored_file.IsString())
+                                        ignored.push_back(ignored_file.GetString());
                                 }
                             }
 
@@ -214,6 +223,7 @@ export class EQOverlay
                                                                               getStringOrDefault("description", "None"),
                                                                               std::move(hosts),
                                                                               std::move(required),
+                                                                              std::move(ignored),
                                                                               std::move(files)));
                             servers.back()->ValidateInstallAsync();
                         }
