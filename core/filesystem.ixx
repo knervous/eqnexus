@@ -230,22 +230,24 @@ export class FileSystem
         }
 
         const std::set<std::string> allowed_dlls = {"entry.dll", "dinput8.dll"};
-        for (const auto& entry : std::filesystem::recursive_directory_iterator(GetPrefix()))
-        {         
-            if (entry.path().extension() == ".dll")
+        if (std::filesystem::exists(GetPrefix())) {
+            for (const auto& entry : std::filesystem::recursive_directory_iterator(GetPrefix()))
             {
-                std::string dll_name = entry.path().filename().string();
-                if (allowed_dlls.contains(dll_name))
+                if (entry.path().extension() == ".dll")
                 {
-                    if (HMODULE hModule = LoadLibrary(entry.path().c_str()))
+                    std::string dll_name = entry.path().filename().string();
+                    if (allowed_dlls.contains(dll_name))
                     {
-                        libs.push_back(hModule);
-                        std::cout << "Loaded DLL: " << dll_name << std::endl;
-                        break;
-                    }
-                    else
-                    {
-                        std::cerr << "Failed to load DLL: " << dll_name << std::endl;
+                        if (HMODULE hModule = LoadLibrary(entry.path().c_str()))
+                        {
+                            libs.push_back(hModule);
+                            std::cout << "Loaded DLL: " << dll_name << std::endl;
+                            break;
+                        }
+                        else
+                        {
+                            std::cerr << "Failed to load DLL: " << dll_name << std::endl;
+                        }
                     }
                 }
             }
