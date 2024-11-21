@@ -82,7 +82,7 @@ Initialize(void* callback)
     CoreUpdater::SetCallback(callback);
     if (!did_init)
     {
-        // AttachConsoleToDLL();
+        AttachConsoleToDLL();
         SetupCore();
         did_init = true;
     }
@@ -132,7 +132,6 @@ DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
         }
         case DLL_THREAD_DETACH:
         case DLL_PROCESS_DETACH:
-            std::cout << "Called detach" << std::endl;
             break;
     }
     return TRUE;

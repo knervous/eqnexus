@@ -145,6 +145,14 @@ export class ServerInfo
         return running_validation;
     }
 
+    void StopValidation() {
+        if (validation_thread.joinable())
+        {
+            yield_validation = true;
+            validation_thread.join();
+        }
+    }
+
     void ValidateInstallAsync(bool blocking = false)
     {
         if (blocking)
@@ -208,6 +216,10 @@ export class ServerInfo
                 {
                     for (const auto& [file, hash] : files)
                     {
+                        if (yield_validation)
+                        {
+                            break;
+                        }
                         fs::path path(root_path);
                         validation_status.setString(util::Interpolate("Checking {}", util::ExtractFilename(file)));
                         auto filePath = path / file;
@@ -471,6 +483,7 @@ export class ServerInfo
     bool downloading                        = false;
     bool ran_validation                     = false;
     bool running_validation                 = false;
+    bool yield_validation                   = false;
     int download_files                      = 0;
     int download_files_total                = 0;
     std::string download_file               = "";

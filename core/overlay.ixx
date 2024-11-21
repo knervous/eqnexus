@@ -168,7 +168,7 @@ export class EQOverlay
                         {
                             rapidjson::Document serverDocument;
                             serverDocument.Parse(serverResponse.c_str());
-                            if (serverDocument.HasParseError())
+                            if (serverDocument.HasParseError() || serverDocument.HasMember("error"))
                             {
                                 continue;
                             }
@@ -352,7 +352,7 @@ export class EQOverlay
         nk_end(ctx);
 
 #ifdef DEV
-        /*struct nk_rect debug_wnd_rect = nk_rect(0.0f, 0.0f, 200.0f, 300.0f);
+        struct nk_rect debug_wnd_rect = nk_rect(0.0f, 0.0f, 200.0f, 300.0f);
         if (nk_begin(ctx, "Debug", debug_wnd_rect, NK_WINDOW_BORDER | NK_WINDOW_TITLE))
         {
             nk_layout_row_dynamic(ctx, 30, 1);
@@ -376,7 +376,7 @@ export class EQOverlay
 
             nk_layout_space_end(ctx);
         }
-        nk_end(ctx);*/
+        nk_end(ctx);
 
 #endif
         nk_d3d9_render(NK_ANTI_ALIASING_ON);
@@ -467,12 +467,9 @@ export class EQOverlay
             {
                 if (server->IsValidating())
                 {
-                    Login::InterceptUnknown(
-                        "<b>Failed to join server<br></br>Your server files "
-                        "are currently validating update status: " +
-                        server->GetLongName() + ".");
-                    Server::SetContext("");
-                    return true;
+                    for (auto& server : servers) {
+                        server->StopValidation();
+                    }
                 }
 
                 server->ValidateInstallAsync(true);

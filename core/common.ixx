@@ -1,4 +1,3 @@
-export module common;
 
 /*
  * MacroQuest: The extension platform for EverQuest
@@ -13,6 +12,8 @@ export module common;
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+
+export module common;
 
 import offset_utils;
 

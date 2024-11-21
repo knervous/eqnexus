@@ -8,6 +8,7 @@ import zones;
 import animations;
 import npcs;
 import options;
+import ini;
 
 import <string>;
 import <iostream>;
@@ -86,6 +87,12 @@ export class Config
         if (document.HasMember("options") && document["options"].IsObject())
         {
             OptionsConfig::Init(document["options"].GetObj());
+        }
+
+        // Ini
+        if (document.HasMember("iniOverrides") && document["iniOverrides"].IsObject())
+        {
+            IniConfig::Init(document["iniOverrides"].GetObj());
         }
     }
 

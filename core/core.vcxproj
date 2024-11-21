@@ -199,6 +199,7 @@
     <ClCompile Include="globals.ixx" />
     <ClCompile Include="hooks.ixx" />
     <ClCompile Include="http.ixx" />
+    <ClCompile Include="ini.ixx" />
     <ClCompile Include="login.ixx" />
     <ClCompile Include="login_frontend.ixx" />
     <ClCompile Include="nk.ixx" />

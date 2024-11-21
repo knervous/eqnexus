@@ -83,19 +83,23 @@ class PatchConfig : public BaseConfigOption
         DWORD oldProtect;
         std::vector<uint8_t> originalBytes(size);
         void* address = (void*) (addressValue + eqlib::EQGameBaseAddress);
+
         if (!VirtualProtect(address, size, PAGE_EXECUTE_READWRITE, &oldProtect))
         {
             std::cerr << "Failed to change memory protection." << std::endl;
             return {};
         }
+
         std::memcpy(originalBytes.data(), address, size);
+        std::memcpy(address, value, size);
+
         FlushInstructionCache(GetCurrentProcess(), address, size);
 
-        std::memcpy(address, value, size);
         if (!VirtualProtect(address, size, oldProtect, &oldProtect))
         {
             std::cerr << "Failed to restore memory protection." << std::endl;
         }
+
         return originalBytes;
     }
 };
@@ -130,6 +134,11 @@ export class OptionsConfig
     {
         Options.clear();
         RemoveHooks();
+        for (const auto& fn : CleanupFunctions)
+        {
+            fn();
+        }
+        CleanupFunctions.clear();
         State = OptionsState{};
     }
 
@@ -143,11 +152,11 @@ export class OptionsConfig
         bool PreventLogin              = false;
         std::string PreventLoginReason = "";
     };
-    inline static OptionsState State                                     = {};
-    inline static std::vector<std::unique_ptr<BaseConfigOption>> Options = {};
-    inline static std::vector<HookSet> Hooks;
+    inline static OptionsState State                                                    = {};
+    inline static std::vector<std::unique_ptr<BaseConfigOption>> Options                = {};
+    inline static std::vector<HookSet> Hooks                                            = {};
+    inline static std::vector<std::function<void()>> CleanupFunctions                   = {};
     inline static std::unordered_map<std::string, std::function<void()>> optionHandlers = {
-        {"restoreGammaOnCrash", []() {}},
         {"disallowMq2",
          []() {
              const std::set<std::string> allowed_dlls = {"entry.dll", "dinput8.dll"};
@@ -162,7 +171,8 @@ export class OptionsConfig
                  {
                      State.PreventLogin = true;
                      State.PreventLoginReason =
-                         "MacroQuest is not allowed on this server.<br></br>Please stop MacroQuest and restart EverQuest in order to log in to "
+                         "MacroQuest is not allowed on this server.<br></br>Please stop MacroQuest and restart EverQuest in order to log "
+                         "in to "
                          "this server.";
                  }
              }
@@ -170,7 +180,10 @@ export class OptionsConfig
         {"disableMapWindow", []() { Options.emplace_back(std::make_unique<NoOpConfig>(0x2CF4A0)); }},
         {"disableLuclinModels",
          []() {
-             using load_settings_t = uintptr_t(__cdecl*)(
+             // This one-off use case to hook this address isn't worthwhile because we can override ini settings elsewhere
+             // But I'm keeping this here as a template for anonymous hooks
+
+             /*using load_settings_t = uintptr_t(__cdecl*)(
                  char* lpAppName, char* lpKeyName, char* lpDefault, char* lpReturnedString, size_t nSize, char* lpFileName);
              static load_settings_t OriginalLoadSettings = 0;
              auto load_settings_hook = [](char* name, char* key, char* default_, char* returned, size_t size, char* filename) -> uintptr_t {
@@ -188,7 +201,7 @@ export class OptionsConfig
              };
              Hooks.push_back(HookSet{reinterpret_cast<LPVOID>(eqlib::EQGameBaseAddress + 0x460EF0),
                                      reinterpret_cast<LPVOID>(static_cast<load_settings_t>(load_settings_hook)),
-                                     reinterpret_cast<LPVOID*>(&OriginalLoadSettings)});
+                                     reinterpret_cast<LPVOID*>(&OriginalLoadSettings)});*/
          }},
         {"disableBazaarWindow", []() { Options.emplace_back(std::make_unique<NoOpConfig>(0x236670)); }},
         {"disableHeroic",
@@ -199,17 +212,48 @@ export class OptionsConfig
                  {0x42BB6, {0x90, 0x90, 0xEB}},
              }));
          }},
-        {"disablePatchMe", []() {}},
-        {"disableFoodDrinkSpam", []() {}},
-        {"enableMaxHPFix", []() {}},
-        {"enableMQInjects", []() {}},
-        {"enableMQ2Prevention", []() {}},
-        {"enableSpellDataCRC", []() {}},
-        {"enableCombatDamageDoubleAppliedFix", []() {}},
-        {"enableChecksumFix", []() {}},
-        {"enableOldModelHorseSupport", []() {}},
-        {"enableReportHardwareAddress", []() {}},
-        {"enableAllowIllegalAugments", []() {}}};
+        {"disableFoodDrinkSpam",
+         []() {
+             Options.emplace_back(std::make_unique<PatchConfig>(PatchList{
+                 {0x5AE9F, {0x90, 0x90, 0xE9, 0x76, 0x03, 0x00, 0x00, 0x90}},
+             }));
+         }},
+        {"enableMaxHPFix",
+         []() {
+             Options.emplace_back(std::make_unique<PatchConfig>(PatchList{
+                 {0x44158, {0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90}},
+                 {0x49F64, {0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90}},
+             }));
+         }},
+        {"enableAnyClassShield",
+         []() {
+             Options.emplace_back(std::make_unique<PatchConfig>(PatchList{
+                 {0xE8DA8, {0x90, 0x90, 0x90, 0x90, 0x90, 0x90}},
+             }));
+         }},
+        {"enableCombatDamageDoubleAppliedFix",
+         []() {
+             Options.emplace_back(std::make_unique<PatchConfig>(PatchList{
+                 {0x5385D,
+                  {
+                      0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
+                      0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
+                  }},
+             }));
+         }},
+        {"enableOldModelHorseSupport",
+         []() {
+             Options.emplace_back(std::make_unique<PatchConfig>(PatchList{
+                 {0x18DE28, {0x32, 0xC0}},
+             }));
+         }},
+        {"enableUltravision",
+         []() {
+             Options.emplace_back(std::make_unique<PatchConfig>(PatchList{
+                 {0x94455, {0x90, 0x90}},
+             }));
+         }},
+    };
 
     static void SetupHooks()
     {

@@ -8,7 +8,9 @@ import <iostream>;
 import <iomanip>;
 import <atomic>;
 import <memory>;
+import <algorithm>;
 import <sstream>;
+import <cctype>;
 import <fstream>;
 import <string>;
 import <span>;
@@ -121,10 +123,7 @@ GenerateFileHash(const std::string& filePath)
      XXH64_hash_t hash = XXH64_digest(state);
     XXH64_freeState(state);
 
-    std::ostringstream oss;
-    oss << std::hex << std::uppercase << std::setfill('0') << std::setw(16) << hash;
-
-    return oss.str();
+    return std::format("{:016X}", hash);
 }
 
 
@@ -195,6 +194,15 @@ ToStringWithPrecision(double value, int precision = 2)
     out << std::fixed << std::setprecision(precision) << value;
     return out.str();
 }
+
+std::string
+toLowerCase(const std::string& input)
+{
+    std::string result = input;
+    std::transform(result.begin(), result.end(), result.begin(), [](unsigned char c) { return std::tolower(c); });
+    return result;
+}
+
 
 std::string
 GetCurrentWorkingDirectory()

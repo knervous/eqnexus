@@ -134,6 +134,9 @@
     <ClCompile Include="updater.ixx">
       <Filter>Modules</Filter>
     </ClCompile>
+    <ClCompile Include="ini.ixx">
+      <Filter>Modules\hooks</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="NexusCore.rc">
