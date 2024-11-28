@@ -148,7 +148,7 @@ export class ServerInfo
         if (validation_thread.joinable())
         {
             yield_validation = true;
-            validation_thread.join();
+            // validation_thread.join();
         }
     }
 
@@ -516,7 +516,7 @@ export class ServerInfo
     double pct_downloaded = 0.0;
     std::string status    = "";
 
-    void WriteHashAndVersion()
+    void WriteVersion()
     {
         const auto& root_path = "eqnexus/" + shortName;
         fs::path version_path = root_path + "/version.txt";
@@ -572,53 +572,22 @@ export class ServerInfo
             return;
         }
 
-        // Download whole package if directory doesn't exist yet
-        if (!exists)
-        {
-            downloading          = true;
-            download_files       = 1;
-            auto zip_path        = path + "/" + shortName + ".zip";
-            download_files_total = 1;
-            download_file        = util::ExtractFilename(customFilesUrl);
-            if (http::DownloadBinary(customFilesUrl, zip_path, [this](double pct) { pct_downloaded = pct; }))
-            {
-                downloading = false;
+        downloading          = true;
+        download_files_total = outOfDateFiles.size();
 
-                if (zipextractor::ExtractAllFilesFromZip(zip_path,
-                                                         [this](const std::string& filename) { status = "Extracting " + filename; }) &&
-                    fs::remove(zip_path))
-                {
-                    WriteHashAndVersion();
-                }
-                else
-                {
-                    Login::OpenModal("Extract Error. Error extracting zip from: " + zip_path);
-                }
-            }
-            else
-            {
-                error = "HTTP Failure";
-            }
-        }
-        else
+        ThreadPool pool(std::thread::hardware_concurrency());
+        for (const auto& file : outOfDateFiles)
         {
-            downloading          = true;
-            download_files_total = outOfDateFiles.size();
-
-            ThreadPool pool(std::thread::hardware_concurrency());
-            for (const auto& file : outOfDateFiles)
-            {
-                pool.enqueue([this, file, path]() {
-                    const auto& file_path = path + "/" + file;
-                    const auto& url       = filesUrlPrefix + "/" + file;
-                    http::DownloadBinary(url, file_path);
-                    download_files++;
-                    pct_downloaded = 100 * (static_cast<double>(download_files) / static_cast<double>(download_files_total));
-                });
-            }
-            pool.wait();
-            WriteHashAndVersion();
+            pool.enqueue([this, file, path]() {
+                const auto& file_path = path + "/" + file;
+                const auto& url       = filesUrlPrefix + "/" + file;
+                http::DownloadBinary(url, file_path);
+                download_files++;
+                pct_downloaded = 100 * (static_cast<double>(download_files) / static_cast<double>(download_files_total));
+            });
         }
+        pool.wait();
+        WriteVersion();
 
         status               = "";
         downloading          = false;

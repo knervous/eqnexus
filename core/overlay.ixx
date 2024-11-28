@@ -469,13 +469,13 @@ export class EQOverlay
     {
         return eqlib::pEverQuest ? eqlib::pEverQuest->GameState : -1;
     }
-    bool DoLogin(int server_id)
+    bool DoLogin(int server_id, bool stop_validation = true)
     {
         for (auto& server : servers)
         {
             if (server->GetClientServer() && server->GetClientServer()->ID == server_id)
             {
-                if (server->IsValidating())
+                if (stop_validation && server->IsValidating())
                 {
                     for (auto& server : servers) {
                         server->StopValidation();

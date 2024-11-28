@@ -200,7 +200,7 @@ export class Login
                 if (!LoggedIntoServerSelect)
                 {
                     auto server_id = (int) data[32];
-                    if (LoginCallback && LoginCallback(server_id))
+                    if (LoginCallback && LoginCallback(server_id), false)
                     {
                         OpenModal("");
                         return;
