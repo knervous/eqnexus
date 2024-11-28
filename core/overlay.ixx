@@ -501,6 +501,7 @@ export class EQOverlay
                     Server::SetContext("");
                     return true;
                 }
+                FileSystem::LoadDlls();
                 return false;
             }
         }

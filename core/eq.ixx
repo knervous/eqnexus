@@ -127,4 +127,12 @@ export struct PlayEverquestRequest_Struct {
     uint32_t server_number;
 };
 
+export struct LoginInfo_Struct {
+     /*000*/	char	login_info[64];
+     /*064*/	char	custom_header[124];
+     /*188*/	uint8_t	zoning;			// 01 if zoning, 00 if not
+     /*189*/	uint8_t	unknown189[275];
+     /*488*/
+ };
+
 #pragma pack()

@@ -206,6 +206,10 @@ export class ServerInfo
                 result = false;
                 for (const auto& pair : files)
                 {
+                    if (yield_validation)
+                    {
+                        break;
+                    }
                     if (std::find(ignored.begin(), ignored.end(), pair.first) != ignored.end())
                     {
                         continue;

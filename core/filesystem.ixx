@@ -53,6 +53,37 @@ export class FileSystem
         }
     }
 
+    static void LoadDlls()
+    {
+        const std::set<std::string> allowed_dlls = {"entry.dll", "dinput8.dll", "MQ2Main.dll"};
+        if (std::filesystem::exists(GetPrefix()))
+        {
+            for (const auto& entry : std::filesystem::recursive_directory_iterator(GetPrefix()))
+            {
+                if (entry.path().extension() == ".dll")
+                {
+                    std::string dll_name = entry.path().filename().string();
+
+                    if (allowed_dlls.contains(dll_name))
+                    {
+                        if (HMODULE hModule =
+                                LoadLibraryEx(std::filesystem::absolute(entry.path()).c_str(), NULL, LOAD_WITH_ALTERED_SEARCH_PATH))
+
+                        {
+                            libs.push_back(hModule);
+                            std::cout << "Loaded DLL: " << dll_name << std::endl;
+                            break;
+                        }
+                        else
+                        {
+                            std::cerr << "Failed to load DLL: " << dll_name << std::endl;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
    private:
     inline static std::vector<HookEntry> hooks;
     inline static fopen_t Original_MainOpen                                = nullptr;
@@ -226,30 +257,6 @@ export class FileSystem
             {
                 std::cout << "Failed FS hook enable" << std::endl;
                 return;
-            }
-        }
-
-        const std::set<std::string> allowed_dlls = {"entry.dll", "dinput8.dll"};
-        if (std::filesystem::exists(GetPrefix())) {
-            for (const auto& entry : std::filesystem::recursive_directory_iterator(GetPrefix()))
-            {
-                if (entry.path().extension() == ".dll")
-                {
-                    std::string dll_name = entry.path().filename().string();
-                    if (allowed_dlls.contains(dll_name))
-                    {
-                        if (HMODULE hModule = LoadLibrary(entry.path().c_str()))
-                        {
-                            libs.push_back(hModule);
-                            std::cout << "Loaded DLL: " << dll_name << std::endl;
-                            break;
-                        }
-                        else
-                        {
-                            std::cerr << "Failed to load DLL: " << dll_name << std::endl;
-                        }
-                    }
-                }
             }
         }
     }

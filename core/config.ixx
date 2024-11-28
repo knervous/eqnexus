@@ -9,6 +9,7 @@ import animations;
 import npcs;
 import options;
 import ini;
+import server_options;
 
 import <string>;
 import <iostream>;
@@ -93,6 +94,12 @@ export class Config
         if (document.HasMember("iniOverrides") && document["iniOverrides"].IsObject())
         {
             IniConfig::Init(document["iniOverrides"].GetObj());
+        }
+
+         // Server
+        if (document.HasMember("server") && document["server"].IsObject())
+        {
+            ServerOptions::Init(document["server"].GetObj());
         }
     }
 

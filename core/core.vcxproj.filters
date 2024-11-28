@@ -137,6 +137,9 @@
     <ClCompile Include="ini.ixx">
       <Filter>Modules\hooks</Filter>
     </ClCompile>
+    <ClCompile Include="server_options.ixx">
+      <Filter>Modules\hooks</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="NexusCore.rc">
