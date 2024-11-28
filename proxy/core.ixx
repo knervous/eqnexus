@@ -94,6 +94,8 @@ UnloadCore()
     }
 }
 
+std::thread update_thread;
+
 extern bool __cdecl UpdateCore(const char* temp)
 {
     std::cout << "Called update core: " << temp << std::endl;
@@ -107,7 +109,7 @@ extern bool __cdecl UpdateCore(const char* temp)
     std::string folder(temp);
     // Need to let this function return to core.dll and then do this work on another thread
     // So core.dll can be unloaded
-    std::thread t([folder]() {
+    update_thread = std::thread([folder]() {
         // First unload then we copy all the new files in and reload
         UnloadCore();
 
@@ -238,7 +240,7 @@ extern bool __cdecl UpdateCore(const char* temp)
         LoadCore();
         LoadDevices();
     });
-    t.detach();
+    update_thread.detach();
 
     return true;
 }
