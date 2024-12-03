@@ -37,5 +37,8 @@
         "enableOldModelHorseSupport": false,
         "enableReportHardwareAddress": false,
         "enableAllowIllegalAugments": false
+    },
+    "server": {
+        "customFilesKey": ""
     }
 }

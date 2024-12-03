@@ -8,7 +8,7 @@ To use EQ Nexus, go to the Releases section and download the latest release zip.
 
 ## Server Operators
 
-To have your server with custom content (or configuration) added, take a look at the server_manifest.json and submit a merge request with your server's metadata. Server files URL should be a .zip file with an optional config.json templated from config_template.json in this repo. Any files in the zip will be used as proxy files when people play on your server (and only then -- they are scoped to a session in your server). Please reach out to temp0 in the EQEmu discord under #project-requiem for help.
+To have your server with custom content (or configuration) added, take a look at the server_manifest.json and submit a merge request with your server's metadata. There are several ways to host your custom content. The easiest would be forking this repo (https://github.com/knervous/requiemfiles) and replacing all the content under `rof` with whatever you'd like, and changing the data in the `manifest.json` to match your server's information. Please reach out to temp0 in the EQEmu discord under #project-requiem for help. Onboarding should be a simple process and updating files after the fact should be streamlined.
 
 ## Local Development
 
