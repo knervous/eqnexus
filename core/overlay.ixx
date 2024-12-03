@@ -86,7 +86,7 @@ export class EQOverlay
     bool task_running          = false;
     bool version_warning_shown = false;
     bool has_latest            = true;
-    nk_bool skip_validation = false;
+    nk_bool skip_validation    = false;
 
     void InitializeBounds()
     {
@@ -142,7 +142,7 @@ export class EQOverlay
                 latest_core_version = std::string(latest_document["version"].GetString());
                 auto filename       = std::string(latest_document["filename"].GetString());
 
-                version = CoreVersion{latest_core_version, filename};
+                version    = CoreVersion{latest_core_version, filename};
                 has_latest = core_version == latest_core_version;
                 if (!has_latest && !version_warning_shown)
                 {
@@ -175,7 +175,7 @@ export class EQOverlay
 
                             std::vector<std::string> hosts                     = {};
                             std::vector<std::string> required                  = {};
-                            std::vector<std::string> ignored                  = {};
+                            std::vector<std::string> ignored                   = {"manifest.json"};
                             std::unordered_map<std::string, std::string> files = {};
                             for (const auto& host : serverDocument["hosts"].GetArray())
                             {
@@ -362,31 +362,31 @@ export class EQOverlay
         nk_end(ctx);
 
 #ifdef DEV
-      /*  struct nk_rect debug_wnd_rect = nk_rect(0.0f, 0.0f, 200.0f, 300.0f);
-        if (nk_begin(ctx, "Debug", debug_wnd_rect, NK_WINDOW_BORDER | NK_WINDOW_TITLE))
-        {
-            nk_layout_row_dynamic(ctx, 30, 1);
+        /*  struct nk_rect debug_wnd_rect = nk_rect(0.0f, 0.0f, 200.0f, 300.0f);
+          if (nk_begin(ctx, "Debug", debug_wnd_rect, NK_WINDOW_BORDER | NK_WINDOW_TITLE))
+          {
+              nk_layout_row_dynamic(ctx, 30, 1);
 
-            nk_checkbox_label(ctx, "Skip validation", &skip_validation);
-            float ww           = nk_window_get_content_region(ctx).w;
-            float button_width = 135.0f;
-            float x_pos        = (ww - button_width) / 2;
+              nk_checkbox_label(ctx, "Skip validation", &skip_validation);
+              float ww           = nk_window_get_content_region(ctx).w;
+              float button_width = 135.0f;
+              float x_pos        = (ww - button_width) / 2;
 
-            nk_layout_space_begin(ctx, NK_STATIC, 40, 1);
-            nk_layout_space_push(ctx, nk_rect(x_pos, 0, button_width, 30));
+              nk_layout_space_begin(ctx, NK_STATIC, 40, 1);
+              nk_layout_space_push(ctx, nk_rect(x_pos, 0, button_width, 30));
 
-            nk_layout_space_end(ctx);
-            nk_layout_space_begin(ctx, NK_STATIC, 40, 1);
-            nk_layout_space_push(ctx, nk_rect(x_pos, 0, button_width, 30));
+              nk_layout_space_end(ctx);
+              nk_layout_space_begin(ctx, NK_STATIC, 40, 1);
+              nk_layout_space_push(ctx, nk_rect(x_pos, 0, button_width, 30));
 
-            if (nk_button_label(ctx, "Test"))
-            {
-                Login::OpenModal("Testing here: <a href=\"https://google.com\">Test anchor</a>");
-            }
+              if (nk_button_label(ctx, "Test"))
+              {
+                  Login::OpenModal("Testing here: <a href=\"https://google.com\">Test anchor</a>");
+              }
 
-            nk_layout_space_end(ctx);
-        }
-        nk_end(ctx);*/
+              nk_layout_space_end(ctx);
+          }
+          nk_end(ctx);*/
 
 #endif
         nk_d3d9_render(NK_ANTI_ALIASING_ON);
@@ -477,7 +477,8 @@ export class EQOverlay
             {
                 if (stop_validation && server->IsValidating())
                 {
-                    for (auto& server : servers) {
+                    for (auto& server : servers)
+                    {
                         server->StopValidation();
                     }
                 }

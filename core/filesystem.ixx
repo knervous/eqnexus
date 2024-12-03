@@ -58,7 +58,7 @@ export class FileSystem
         const std::set<std::string> allowed_dlls = {"entry.dll", "dinput8.dll", "MQ2Main.dll"};
         if (std::filesystem::exists(GetPrefix()))
         {
-            for (const auto& entry : std::filesystem::recursive_directory_iterator(GetPrefix()))
+            for (const auto& entry : std::filesystem::directory_iterator(GetPrefix()))
             {
                 if (entry.path().extension() == ".dll")
                 {
