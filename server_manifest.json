@@ -2,7 +2,7 @@
     "servers": [
         {
             "name": "The Heroes' Journey",
-            "manifest": "https://github.com/The-Heroes-Journey-EQEMU/eqemupatcher/releases/latest/download/manifest.json"
+            "manifest": "https://github.com/knervous/eqemupatcher/releases/latest/download/manifest.json"
         },
         {
             "name": "The Wayfarers Haven",
