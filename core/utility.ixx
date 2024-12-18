@@ -21,8 +21,8 @@ import <regex>;
 import <format>;
 import <xxhash.h>;
 import <rapidjson/document.h>;
-#include <commdlg.h>
 #include <Psapi.h>
+#include <commdlg.h>
 
 namespace fs = std::filesystem;
 
@@ -104,10 +104,11 @@ GenerateFileHash(const std::string& filePath)
         std::cerr << "Failed to create xxHash3 state" << std::endl;
         return "";
     }
-   
+
     XXH64_reset(state, 0);
 
-    if (filePath.find("barter_assets") != std::string::npos) {
+    if (filePath.find("barter_assets") != std::string::npos)
+    {
         auto stop = 213;
         std::cout << filePath << std::endl;
     }
@@ -119,13 +120,11 @@ GenerateFileHash(const std::string& filePath)
         XXH64_update(state, buffer, count);
     }
 
-
-     XXH64_hash_t hash = XXH64_digest(state);
+    XXH64_hash_t hash = XXH64_digest(state);
     XXH64_freeState(state);
 
     return std::format("{:016X}", hash);
 }
-
 
 void
 ReplaceAll(std::string& str, const std::string& from, const std::string& to)
@@ -202,7 +201,6 @@ toLowerCase(const std::string& input)
     std::transform(result.begin(), result.end(), result.begin(), [](unsigned char c) { return std::tolower(c); });
     return result;
 }
-
 
 std::string
 GetCurrentWorkingDirectory()
@@ -317,7 +315,6 @@ IsHooked(uintptr_t address, uintptr_t& hookTarget)
     return false;
 }
 
-
 class AtomicString
 {
    public:
@@ -337,5 +334,63 @@ class AtomicString
    private:
     std::atomic<std::shared_ptr<std::string>> atomicStringPtr;
 };
+
+bool
+ReadFileToString(const std::filesystem::path& filePath, std::string& outContent)
+{
+    try
+    {
+        // Check if the file exists and is a regular file
+        if (!std::filesystem::exists(filePath))
+        {
+            std::cerr << "Error: File does not exist: " << filePath << '\n';
+            return false;
+        }
+
+        if (!std::filesystem::is_regular_file(filePath))
+        {
+            std::cerr << "Error: Not a regular file: " << filePath << '\n';
+            return false;
+        }
+
+        // Open the file in binary mode and position the cursor at the end to determine the size
+        std::ifstream file(filePath, std::ios::binary | std::ios::ate);
+        if (!file)
+        {
+            std::cerr << "Error: Unable to open file: " << filePath << '\n';
+            return false;
+        }
+
+        // Determine the file size
+        std::streamsize size = file.tellg();
+        if (size < 0)
+        {
+            std::cerr << "Error: Failed to determine the size of the file: " << filePath << '\n';
+            return false;
+        }
+
+        file.seekg(0, std::ios::beg);  // Reset cursor to the beginning
+
+        // Resize the string to hold the file content
+        outContent.resize(static_cast<size_t>(size));
+
+        // Read the file content into the string
+        if (!file.read(outContent.data(), size))
+        {
+            std::cerr << "Error: Failed to read the file: " << filePath << '\n';
+            return false;
+        }
+
+        return true;
+    } catch (const std::filesystem::filesystem_error& e)
+    {
+        std::cerr << "Filesystem error: " << e.what() << '\n';
+        return false;
+    } catch (const std::exception& e)
+    {
+        std::cerr << "General error: " << e.what() << '\n';
+        return false;
+    }
+}
 
 }  // namespace util

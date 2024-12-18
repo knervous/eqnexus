@@ -128,6 +128,14 @@ export class ServerInfo
         return shortName;
     }
 
+    const int GetPriority() {
+        return priority;
+    }
+
+    void SetPriority(int p) {
+        priority = p;
+    }
+
     const bool UpToDate()
     {
         return up_to_date;
@@ -509,6 +517,8 @@ export class ServerInfo
     bool yield_validation                   = false;
     int download_files                      = 0;
     int download_files_total                = 0;
+    int priority                            = 0;
+
     std::string download_file               = "";
     std::thread validation_thread;
     util::AtomicString validation_status;

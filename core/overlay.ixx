@@ -12,6 +12,7 @@ import nk;
 import server_info;
 import updater;
 import config;
+import threadpool;
 
 import <windows.h>;
 import <d3d9.h>;
@@ -86,6 +87,7 @@ export class EQOverlay
     bool task_running          = false;
     bool version_warning_shown = false;
     bool has_latest            = true;
+    bool fetching              = false;
     nk_bool skip_validation    = false;
 
     void InitializeBounds()
@@ -110,6 +112,7 @@ export class EQOverlay
     void FetchServerData()
     {
         status                = "Fetching Server Metadata...";
+        fetching              = true;
         const auto url        = util::ReadIniValue("ServerMetadata", "ManifestUrl", ini_path);
         const auto latest_url = util::ReadIniValue("ServerMetadata", "LatestUrl", ini_path);
         server_op             = util::ReadIniValue("ServerMetadata", "ServerOp", ini_path) == "true";
@@ -136,6 +139,7 @@ export class EQOverlay
                     });
                     t.detach();
                     status = "Error fetching metadata";
+                    fetching = false;
                     return;
                 }
 
@@ -160,80 +164,111 @@ export class EQOverlay
                 }
 
                 status = "";
+                ThreadPool pool(std::thread::hardware_concurrency());
+                int priority = 0;
+
+                auto parseServerDocument = [this](const rapidjson::Document& serverDocument, int priority) {
+                    std::vector<std::string> hosts                     = {};
+                    std::vector<std::string> required                  = {};
+                    std::vector<std::string> ignored                   = {"manifest.json"};
+                    std::unordered_map<std::string, std::string> files = {};
+                    for (const auto& host : serverDocument["hosts"].GetArray())
+                    {
+                        if (host.IsString())
+                            hosts.push_back(host.GetString());
+                    }
+                    if (serverDocument.HasMember("required") && serverDocument["required"].IsArray())
+                    {
+                        for (const auto& required_file : serverDocument["required"].GetArray())
+                        {
+                            if (required_file.IsString())
+                                required.push_back(required_file.GetString());
+                        }
+                    }
+                    if (serverDocument.HasMember("ignored") && serverDocument["ignored"].IsArray())
+                    {
+                        for (const auto& ignored_file : serverDocument["ignored"].GetArray())
+                        {
+                            if (ignored_file.IsString())
+                                ignored.push_back(ignored_file.GetString());
+                        }
+                    }
+
+                    if (serverDocument.HasMember("files") && serverDocument["files"].IsObject())
+                    {
+                        for (const auto& [name, hash] : serverDocument["files"].GetObj())
+                        {
+                            if (name.IsString() && hash.IsString())
+                            {
+                                files[name.GetString()] = hash.GetString();
+                            }
+                        }
+                    }
+                    auto getStringOrDefault = [&](const char* key, const std::string& defaultValue) -> std::string {
+                        return serverDocument.HasMember(key) && serverDocument[key].IsString() ? serverDocument[key].GetString()
+                                                                                               : defaultValue;
+                    };
+
+                    servers.emplace_back(std::make_unique<ServerInfo>(getStringOrDefault("shortName", ""),
+                                                                      getStringOrDefault("longName", ""),
+                                                                      getStringOrDefault("customFilesUrl", ""),
+                                                                      getStringOrDefault("filesUrlPrefix", ""),
+                                                                      getStringOrDefault("version", ""),
+                                                                      getStringOrDefault("website", "None"),
+                                                                      getStringOrDefault("description", "None"),
+                                                                      std::move(hosts),
+                                                                      std::move(required),
+                                                                      std::move(ignored),
+                                                                      std::move(files)));
+                    servers.back()->ValidateInstallAsync();
+                    servers.back()->SetPriority(priority);
+                };
+                if (fs::exists("eqnexus/local.json"))
+                {
+                    try
+                    {
+                        std::string jsonContent;
+                        if (util::ReadFileToString("eqnexus/local.json", jsonContent))
+                        {
+                            rapidjson::Document serverDocument;
+                            serverDocument.Parse(jsonContent.c_str());
+                            if (!serverDocument.HasParseError())
+                            {
+                                parseServerDocument(serverDocument, priority);
+                                priority++;
+                            }
+                        }
+                        
+                       
+                    } catch(...) {}
+                }
                 for (const auto& server : document["servers"].GetArray())
                 {
                     if (server.HasMember("manifest") && server["manifest"].IsString())
                     {
-                        if (auto serverResponse = http::DownloadJson(server["manifest"].GetString()); !serverResponse.empty())
-                        {
-                            rapidjson::Document serverDocument;
-                            serverDocument.Parse(serverResponse.c_str());
-                            if (serverDocument.HasParseError() || serverDocument.HasMember("error"))
+                        pool.enqueue([this, &server, priority, parseServerDocument]() {
+                            if (auto serverResponse = http::DownloadJson(server["manifest"].GetString()); !serverResponse.empty())
                             {
-                                continue;
-                            }
-
-                            std::vector<std::string> hosts                     = {};
-                            std::vector<std::string> required                  = {};
-                            std::vector<std::string> ignored                   = {"manifest.json"};
-                            std::unordered_map<std::string, std::string> files = {};
-                            for (const auto& host : serverDocument["hosts"].GetArray())
-                            {
-                                if (host.IsString())
-                                    hosts.push_back(host.GetString());
-                            }
-                            if (serverDocument.HasMember("required") && serverDocument["required"].IsArray())
-                            {
-                                for (const auto& required_file : serverDocument["required"].GetArray())
+                                rapidjson::Document serverDocument;
+                                serverDocument.Parse(serverResponse.c_str());
+                                if (serverDocument.HasParseError() || serverDocument.HasMember("error"))
                                 {
-                                    if (required_file.IsString())
-                                        required.push_back(required_file.GetString());
+                                    return;
                                 }
+                                parseServerDocument(serverDocument, priority);
                             }
-                            if (serverDocument.HasMember("ignored") && serverDocument["ignored"].IsArray())
-                            {
-                                for (const auto& ignored_file : serverDocument["ignored"].GetArray())
-                                {
-                                    if (ignored_file.IsString())
-                                        ignored.push_back(ignored_file.GetString());
-                                }
-                            }
-
-                            if (serverDocument.HasMember("files") && serverDocument["files"].IsObject())
-                            {
-                                for (const auto& [name, hash] : serverDocument["files"].GetObj())
-                                {
-                                    if (name.IsString() && hash.IsString())
-                                    {
-                                        files[name.GetString()] = hash.GetString();
-                                    }
-                                }
-                            }
-                            auto getStringOrDefault = [&](const char* key, const std::string& defaultValue) -> std::string {
-                                return serverDocument.HasMember(key) && serverDocument[key].IsString() ? serverDocument[key].GetString()
-                                                                                                       : defaultValue;
-                            };
-
-                            servers.emplace_back(std::make_unique<ServerInfo>(getStringOrDefault("shortName", ""),
-                                                                              getStringOrDefault("longName", ""),
-                                                                              getStringOrDefault("customFilesUrl", ""),
-                                                                              getStringOrDefault("filesUrlPrefix", ""),
-                                                                              getStringOrDefault("version", ""),
-                                                                              getStringOrDefault("website", "None"),
-                                                                              getStringOrDefault("description", "None"),
-                                                                              std::move(hosts),
-                                                                              std::move(required),
-                                                                              std::move(ignored),
-                                                                              std::move(files)));
-                            servers.back()->ValidateInstallAsync();
-                        }
+                        });
+                        
+                       priority++;
                     }
                     else
                     {
                         continue;
                     }
                 }
+                pool.wait();
             }
+            fetching = false;
         });
         t.detach();
     }
@@ -257,7 +292,6 @@ export class EQOverlay
         PollDirectInputForNuklear();
         nk_input_end(ctx);
         struct nk_style* s = &ctx->style;
-        // nk_style_push_style_item(ctx, &s->window.fixed_background, nk_style_item_color(nk_rgb(bg.r, bg.g, bg.b)));
 
         struct nk_rect window_rect       = nk_rect(window_x, window_y, window_width, window_height);
         struct nk_rect window_rect_popup = nk_rect(window_x - window_width - 20, window_y, window_width, 150);
@@ -332,8 +366,21 @@ export class EQOverlay
 
             if (!processing)
             {
-                for (auto& server : servers)
+                
+                std::vector<ServerInfo*> sortedServers;
+
+                for (const auto& server : servers)
                 {
+                    sortedServers.push_back(server.get());
+                }
+
+                std::sort(sortedServers.begin(), sortedServers.end(), [](ServerInfo* a, ServerInfo* b) {
+                    return a->GetPriority() < b->GetPriority();
+                });
+
+                for (auto server : sortedServers)
+                {
+              
                     if (server_op)
                     {
                         nk_layout_row_dynamic(ctx, 20, 1);
@@ -351,7 +398,6 @@ export class EQOverlay
         {
             nk_style_pop_font(ctx);
         }
-        // nk_style_pop_style_item(ctx);
 
         struct nk_vec2 new_position = nk_window_get_position(ctx);
         struct nk_vec2 new_size     = nk_window_get_size(ctx);
@@ -360,35 +406,6 @@ export class EQOverlay
         window_width                = new_size.x;
         window_height               = new_size.y;
         nk_end(ctx);
-
-#ifdef DEV
-        /*  struct nk_rect debug_wnd_rect = nk_rect(0.0f, 0.0f, 200.0f, 300.0f);
-          if (nk_begin(ctx, "Debug", debug_wnd_rect, NK_WINDOW_BORDER | NK_WINDOW_TITLE))
-          {
-              nk_layout_row_dynamic(ctx, 30, 1);
-
-              nk_checkbox_label(ctx, "Skip validation", &skip_validation);
-              float ww           = nk_window_get_content_region(ctx).w;
-              float button_width = 135.0f;
-              float x_pos        = (ww - button_width) / 2;
-
-              nk_layout_space_begin(ctx, NK_STATIC, 40, 1);
-              nk_layout_space_push(ctx, nk_rect(x_pos, 0, button_width, 30));
-
-              nk_layout_space_end(ctx);
-              nk_layout_space_begin(ctx, NK_STATIC, 40, 1);
-              nk_layout_space_push(ctx, nk_rect(x_pos, 0, button_width, 30));
-
-              if (nk_button_label(ctx, "Test"))
-              {
-                  Login::OpenModal("Testing here: <a href=\"https://google.com\">Test anchor</a>");
-              }
-
-              nk_layout_space_end(ctx);
-          }
-          nk_end(ctx);*/
-
-#endif
         nk_d3d9_render(NK_ANTI_ALIASING_ON);
     }
 
@@ -471,6 +488,10 @@ export class EQOverlay
     }
     bool DoLogin(int server_id, bool stop_validation = true)
     {
+        if (fetching) {
+            Login::InterceptUnknown("EQNexus is still initializing server metadata");
+            return true;
+        }
         for (auto& server : servers)
         {
             if (server->GetClientServer() && server->GetClientServer()->ID == server_id)

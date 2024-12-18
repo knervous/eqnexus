@@ -12,6 +12,36 @@ To have your server with custom content (or configuration) added, take a look at
 
 ## Local Development
 
+If you are a server operator and want to test out a local manifest.json, simply put a `local.json` in the eqnexus folder with all the pertinent metadata and you will be able to simulate developing against a deployed version of a `manifest.json`
+
+You can start with this as a template and fill in areas as needed
+
+eq/nexuslocal.json
+```json
+{
+    "shortName": "local",
+    "longName": "Local Server [DEV]",
+    "customFilesUrl": "",
+    "filesUrlPrefix": "https://raw.githubusercontent.com/knervous/requiemfiles/refs/heads/master/rof",
+    "version": "0.1",
+    "website": "https://www.eqrequiem.com",
+    "description": "My local server",
+    "hosts": [
+        // Maybe your local network IP or any IP you want to develop against
+    ],
+    "required": [
+        // Good candidate for testing required files. Those will be synchronously checked before trying to log in
+        // to your server so the user can't bypass that check. Otherwise all other files are "optional"
+    ],
+    "ignored": [
+       
+    ],
+    "files": {
+        // This will be difficult to provide locally, don't worry about it.
+    }
+}
+```
+
 This is a work in progress. Will be replacing vcpkg packages while finding the best balance of homegrown vs. third party.
 
 1. Clone the repository with `git clone --recurse-submodules`
