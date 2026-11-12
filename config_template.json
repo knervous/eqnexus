@@ -2,17 +2,11 @@
     "zones": {
         "add": [
             {
-                "shortName": "baylesforest",
-                "longName": "Bayle's Forest",
-                "zoneId" : 850
+                "shortName": "gloom",
+                "longName": "Gloomingdeep Mines",
+                "zoneId" : 800
             }
-        ],
-        "update": {
-            "qeynos2" : {
-                "shortName": "qeynos2",
-                "longName": "Qeynos City"
-            }
-        }
+        ]
     },
     "animations": {
 

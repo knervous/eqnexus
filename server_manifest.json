@@ -1,16 +1,8 @@
 {
     "servers": [
         {
-            "name": "The Heroes' Journey",
-            "manifest": "https://github.com/The-Heroes-Journey-EQEMU/eqemupatcher/releases/latest/download/manifest.json"
-        },
-        {
-            "name": "The Wayfarers Haven",
-            "manifest": "http://patcher.wayfarershaven.com/rof2/manifest.json"
-        },
-        {
-            "name": "Requiem [DEV]",
-            "manifest": "https://github.com/knervous/requiemfiles/releases/latest/download/manifest.json"
+            "name": "ForeverQuest",
+            "manifest": "https://github.com/andarius-lab/eqnexus/blob/main/server_manifest.json"
         }
     ]
 }
